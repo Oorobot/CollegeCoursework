@@ -1,0 +1,36 @@
+# 3ds Max Wavefront OBJ Exporter v0.97b - (c)2007 guruware
+# 创建的文件:25.02.2019 20:00:05
+
+newmtl Hand
+	Ns 96.0784
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.0000 0.0000 0.0000
+	Kd 0.6400 0.6400 0.6400
+	Ks 0.5000 0.5000 0.5000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka C:\Users\Lenovo\Downloads\nanosuit_reflection\hand_dif.png
+	map_Kd C:\Users\Lenovo\Downloads\nanosuit_reflection\hand_dif.png
+	map_Ks C:\Users\Lenovo\Downloads\nanosuit_reflection\hand_showroom_spec.png
+	map_bump C:\Users\Lenovo\Downloads\nanosuit_reflection\hand_showroom_ddn.png
+	bump C:\Users\Lenovo\Downloads\nanosuit_reflection\hand_showroom_ddn.png
+
+newmtl Arm
+	Ns 96.0784
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.0000 0.0000 0.0000
+	Kd 0.6400 0.6400 0.6400
+	Ks 0.5000 0.5000 0.5000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka C:\Users\Lenovo\Downloads\nanosuit_reflection\arm_dif.png
+	map_Kd C:\Users\Lenovo\Downloads\nanosuit_reflection\arm_dif.png
+	map_Ks C:\Users\Lenovo\Downloads\nanosuit_reflection\arm_showroom_spec.png
+	map_bump C:\Users\Lenovo\Downloads\nanosuit_reflection\arm_showroom_ddn.png
+	bump C:\Users\Lenovo\Downloads\nanosuit_reflection\arm_showroom_ddn.png
