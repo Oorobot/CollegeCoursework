@@ -68,9 +68,10 @@ ATOM MyRegisterClass(HINSTANCE hInstance) {
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
   hInst = hInstance;
 
-  HWND hWnd =
-      CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT,
-                    0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
+  HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_CAPTION | WS_SYSMENU, 0,
+                            0, GetSystemMetrics(SM_CXSCREEN) * 2 / 5.0,
+                            GetSystemMetrics(SM_CYSCREEN), nullptr, nullptr,
+                            hInstance, nullptr);
 
   if (!hWnd) {
     return FALSE;
@@ -101,6 +102,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
     case WM_PAINT: {
       PAINTSTRUCT ps;
       HDC hdc = BeginPaint(hWnd, &ps);
+      game.render(hdc);
       EndPaint(hWnd, &ps);
     } break;
     case WM_CREATE:
@@ -108,8 +110,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
       break;
     case WM_TIMER:
       if (wParam == GLOBAL_TIMER_ID) {
-        ik::ticker.emit(ik::type::clock::now());
+        ik::signal::tick_signal.emit(ik::type::clock::now());
+        InvalidateRect(hWnd, NULL, TRUE);
       }
+      break;
+    case WM_LBUTTONDOWN:
+      game.start.start();
+      ik::signal::btn_down_signal.emit(
+          ik::type::point(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)));
+      break;
+    case WM_LBUTTONUP:
+      ik::signal::btn_up_signal.emit(
+          ik::type::point(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)));
+      break;
+    case WM_LBUTTONDBLCLK:
+      ik::signal::dbl_click_signal.emit(
+          ik::type::point(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)));
       break;
     case WM_DESTROY:
       PostQuitMessage(0);

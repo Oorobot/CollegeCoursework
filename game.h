@@ -1,15 +1,18 @@
 #pragma once
 
 #include <iostream>
-
-#include "base.h"
+#include "button.h"
 
 namespace ik {
 class game : public object {
  public:
+  button start;
+
+ public:
   void on_tick(type::time_point now) {}
 
-  void render(HDC hdc) const {}
+  game() : start((type::rect(100, 300, 100, 30))) { start.visible(true); }
+  void render(HDC hdc) const { start.render(hdc); }
 };
 
 }  // namespace ik
