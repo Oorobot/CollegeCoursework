@@ -44,7 +44,7 @@ class button : public animation {
     }
   }
 
-  void render(HDC hdc) const {
+  void paint(HDC hdc, context& ctx) const {
     if (!visible()) return;
     Rectangle(hdc, _rect.x, _rect.y, _rect.x + _rect.width,
               _rect.y + _rect.height);

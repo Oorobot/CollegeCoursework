@@ -1,4 +1,5 @@
 ﻿#include "StopTheBall.h"
+#include "context.h"
 #include "framework.h"
 #include "game.h"
 
@@ -9,7 +10,10 @@ HINSTANCE hInst;
 WCHAR szTitle[MAX_LOADSTRING];
 WCHAR szWindowClass[MAX_LOADSTRING];
 
+HDC mdc = nullptr;
+
 ik::game game;
+ik::context ctx;
 
 ATOM MyRegisterClass(HINSTANCE hInstance);
 BOOL InitInstance(HINSTANCE, int);
@@ -67,10 +71,8 @@ ATOM MyRegisterClass(HINSTANCE hInstance) {
 
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
   hInst = hInstance;
-
   HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_CAPTION | WS_SYSMENU, 0,
-                            0, GetSystemMetrics(SM_CXSCREEN) * 2 / 5.0,
-                            GetSystemMetrics(SM_CYSCREEN), nullptr, nullptr,
+                            0, ctx.width, ctx.height, nullptr, nullptr,
                             hInstance, nullptr);
 
   if (!hWnd) {
@@ -101,17 +103,26 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
     } break;
     case WM_PAINT: {
       PAINTSTRUCT ps;
+      game.paint(mdc, ctx);
       HDC hdc = BeginPaint(hWnd, &ps);
-      game.render(hdc);
+      BitBlt(hdc, 0, 0, ctx.width, ctx.height, mdc, 0, 0, SRCCOPY);
       EndPaint(hWnd, &ps);
     } break;
-    case WM_CREATE:
+    case WM_CREATE: {
       ::SetTimer(hWnd, GLOBAL_TIMER_ID, ik::object::TickDuration, nullptr);
-      break;
+      game.rect(ik::type::rect(0, 0, ctx.width, ctx.height));
+      HDC hdc = GetDC(hWnd);
+      mdc = CreateCompatibleDC(hdc);
+      HBITMAP hbmp = CreateCompatibleBitmap(mdc, ctx.width, ctx.height);
+      SelectObject(mdc, hbmp);
+
+      ctx = ik::context(hInst, mdc);
+      ReleaseDC(hWnd, hdc);
+    } break;
     case WM_TIMER:
       if (wParam == GLOBAL_TIMER_ID) {
         ik::signal::tick_signal.emit(ik::type::clock::now());
-        InvalidateRect(hWnd, NULL, TRUE);
+        InvalidateRect(hWnd, NULL, FALSE);
       }
       break;
     case WM_LBUTTONDOWN:

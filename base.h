@@ -2,7 +2,10 @@
 
 #include <windows.h>
 #include <chrono>
+#include <memory>
 #include "sigslot.h"
+
+#include "context.h"
 
 namespace ik {
 
@@ -95,12 +98,12 @@ class object : public sigslot::has_slots<> {
     signal::btn_down_signal.connect(this, &object::on_click);
     signal::dbl_click_signal.connect(this, &object::on_dbl_click);
   }
-  enum { TickDuration = 25 };
+  enum { TickDuration = 35 };
   virtual void on_tick(type::time_point now) {}
   virtual void on_click(const type::point&) {}
   virtual void on_dbl_click(const type::point&) {}
 
-  virtual void render(HDC hdc) const {}
+  virtual void paint(HDC hdc, context& con) const {}
   virtual ~object() {}
 };
 

@@ -152,6 +152,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="context.h" />
     <ClInclude Include="baffle.h" />
     <ClInclude Include="ball.h" />
     <ClInclude Include="base.h" />
@@ -171,6 +172,7 @@
     <ResourceCompile Include="StopTheBall.rc" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="img\bg.bmp" />
     <Image Include="small.ico" />
     <Image Include="StopTheBall.ico" />
   </ItemGroup>
