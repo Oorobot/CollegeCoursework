@@ -110,7 +110,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
       EndPaint(hWnd, &ps);
     } break;
     case WM_CREATE: {
-      ::SetTimer(hWnd, GLOBAL_TIMER_ID, ik::object::TickDuration, nullptr);
+      ::SetTimer(hWnd, GLOBAL_TIMER_ID, ctx.tick_duration, nullptr);
       game.rect(ik::type::rect(0, 0, ctx.width, ctx.height));
       HDC hdc = GetDC(hWnd);
       mdc = CreateCompatibleDC(hdc);
@@ -135,6 +135,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
         game.buttons["start"]->real_rect(
             ik::type::rect(0, ctx.height / 3, ctx.width, 50));
         game.buttons["start"]->show();
+        game.buttons["start"]->fns_on_btn_up.push_back(
+            [](const ik::type::point& pt) {
+              for (auto& o : game.buttons) o.second->hide();
+            });
 
         game.add_task(ik::type::duration(500), [](ik::type::time_point now,
                                                   ik::game& g) {
@@ -142,13 +146,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
           game.buttons["detail"]->real_rect(ik::type::rect(
               0, ctx.height / 3 + ctx.height / 9, ctx.width, 50));
           game.buttons["detail"]->show();
-
-          game.add_task(ik::type::duration(2000),
-                        [](ik::type::time_point now, ik::game& g) {
-                          for (auto& fly : game.buttons) {
-                            fly.second->hide();
-                          }
-                        });
         });
       });
     } break;
@@ -168,6 +165,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
       break;
     case WM_LBUTTONDBLCLK:
       ik::signal::dbl_click_signal.emit(
+          ik::type::point(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)));
+      break;
+    case WM_MOUSEMOVE:
+      ik::signal::mouse_move_signal.emit(
           ik::type::point(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)));
       break;
     case WM_DESTROY:

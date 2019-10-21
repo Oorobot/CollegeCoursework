@@ -13,6 +13,7 @@ class title : public fly_animation {
     if (!visible()) return;
     auto rc = this->object::rect().to_RECT();
     SelectObject(hdc, ctx.title_font->hfont);
+    SetTextColor(hdc, ctx.title_color);
     DrawText(hdc, text, len, &rc, DT_CENTER);
   }
 };
@@ -27,6 +28,14 @@ class button : public fly_animation {
     if (!visible()) return;
     auto rc = this->object::rect().to_RECT();
     SelectObject(hdc, ctx.btn_font->hfont);
+    if (!_mouse_in)
+      SetTextColor(hdc, ctx.normal_color);
+    else {
+      if (_mouse_down)
+        SetTextColor(hdc, ctx.mouse_down_color);
+      else
+        SetTextColor(hdc, ctx.mouse_hover_color);
+    }
     DrawText(hdc, _text, len, &rc, DT_CENTER);
   }
 };
