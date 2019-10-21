@@ -98,7 +98,7 @@ class object : public sigslot::has_slots<> {
     signal::btn_down_signal.connect(this, &object::on_click);
     signal::dbl_click_signal.connect(this, &object::on_dbl_click);
   }
-  enum { TickDuration = 35 };
+  enum { TickDuration = 30 };
   virtual void on_tick(type::time_point now) {}
   virtual void on_click(const type::point&) {}
   virtual void on_dbl_click(const type::point&) {}

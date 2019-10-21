@@ -113,10 +113,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
       game.rect(ik::type::rect(0, 0, ctx.width, ctx.height));
       HDC hdc = GetDC(hWnd);
       mdc = CreateCompatibleDC(hdc);
-      HBITMAP hbmp = CreateCompatibleBitmap(mdc, ctx.width, ctx.height);
+      ctx = ik::context(hInst, mdc);
+
+      HBITMAP hbmp = CreateCompatibleBitmap(hdc, ctx.width, ctx.height);
       SelectObject(mdc, hbmp);
 
-      ctx = ik::context(hInst, mdc);
       ReleaseDC(hWnd, hdc);
     } break;
     case WM_TIMER:
