@@ -87,7 +87,7 @@ class object : public sigslot::has_slots<> {
 
  public:
   type::rect rect() const { return _rect; }
-  void rect(const type::rect& rect) { _rect = rect; }
+  virtual void rect(const type::rect& rect) { _rect = rect; }
 
   bool visible() const { return _visible; }
   void visible(bool vis) { _visible = vis; }

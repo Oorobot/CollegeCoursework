@@ -48,6 +48,9 @@
     <ClInclude Include="context.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="buttons.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="StopTheBall.cpp">
@@ -70,6 +73,18 @@
       <Filter>资源文件</Filter>
     </Image>
     <Image Include="img\bg.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="img\blue.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="img\green.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="img\red.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="img\yellow.bmp">
       <Filter>资源文件</Filter>
     </Image>
   </ItemGroup>

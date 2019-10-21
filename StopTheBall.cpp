@@ -1,4 +1,5 @@
 ﻿#include "StopTheBall.h"
+#include "buttons.h"
 #include "context.h"
 #include "framework.h"
 #include "game.h"
@@ -119,6 +120,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
       SelectObject(mdc, hbmp);
 
       ReleaseDC(hWnd, hdc);
+
+      game.add_task(
+          ik::type::duration(500), [](ik::type::time_point now, ik::game& g) {
+            game.buttons["title"] = std::make_shared<ik::title>();
+            game.buttons["title"]->rect(
+                ik::type::rect(ctx.width / 2, ctx.height / 2, 100, 50));
+            game.buttons["title"]->visible(true);
+            game.buttons["title"]->start();
+          });
     } break;
     case WM_TIMER:
       if (wParam == GLOBAL_TIMER_ID) {
@@ -127,7 +137,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
       }
       break;
     case WM_LBUTTONDOWN:
-      game.start.start();
       ik::signal::btn_down_signal.emit(
           ik::type::point(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)));
       break;

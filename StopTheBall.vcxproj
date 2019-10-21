@@ -152,6 +152,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="buttons.h" />
     <ClInclude Include="context.h" />
     <ClInclude Include="baffle.h" />
     <ClInclude Include="ball.h" />
@@ -173,6 +174,10 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="img\bg.bmp" />
+    <Image Include="img\blue.bmp" />
+    <Image Include="img\green.bmp" />
+    <Image Include="img\red.bmp" />
+    <Image Include="img\yellow.bmp" />
     <Image Include="small.ico" />
     <Image Include="StopTheBall.ico" />
   </ItemGroup>

@@ -21,28 +21,25 @@ struct image {
   }
 
   ~image() {
-    if (hbmp) {
-      DeleteObject(hbmp);
-    }
-    if (hdc) {
-      DeleteDC(hdc);
-    }
+    if (hbmp) DeleteObject(hbmp);
+    if (hdc) DeleteDC(hdc);
   }
 };
 
 struct context {
   int width = 0, height = 0;
-  std::shared_ptr<image> bg;
+  std::shared_ptr<image> bg, red, blue, green, yellow;
 
   context() {
-    width = GetSystemMetrics(SM_CXSCREEN) * 2 / 5.0;
+    width = static_cast<int>(GetSystemMetrics(SM_CXSCREEN) * 2 / 5.0);
     height = GetSystemMetrics(SM_CYSCREEN);
   }
-  context(HINSTANCE hinst, HDC hdc) {
-    width = GetSystemMetrics(SM_CXSCREEN) * 2 / 5.0;
-    height = GetSystemMetrics(SM_CYSCREEN);
-
+  context(HINSTANCE hinst, HDC hdc) : context() {
     bg.reset(new image(hinst, hdc, IDB_BG));
+    red.reset(new image(hinst, hdc, IDB_RED));
+    blue.reset(new image(hinst, hdc, IDB_BLUE));
+    green.reset(new image(hinst, hdc, IDB_GREEN));
+    yellow.reset(new image(hinst, hdc, IDB_YELLOW));
   }
 };
 }  // namespace ik
