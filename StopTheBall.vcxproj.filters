@@ -42,13 +42,16 @@
     <ClInclude Include="baffle.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="button.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="context.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="buttons.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="res.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="fly_animation.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

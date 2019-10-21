@@ -3,7 +3,9 @@
 #include <functional>
 #include <iostream>
 #include <map>
-#include "button.h"
+#include "fly_animation.h"
+
+#define TASK_PARAM ik::type::time_point now, ik::game &g
 
 namespace ik {
 class game : public object {
@@ -20,7 +22,7 @@ class game : public object {
   void clear_all_tasks() { _tasks.clear(); }
 
  public:
-  std::map<std::string, std::shared_ptr<button>> buttons;
+  std::map<std::string, std::shared_ptr<fly_animation>> buttons;
 
  public:
   void on_tick(type::time_point now) {

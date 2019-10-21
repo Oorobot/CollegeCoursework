@@ -114,6 +114,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
       game.rect(ik::type::rect(0, 0, ctx.width, ctx.height));
       HDC hdc = GetDC(hWnd);
       mdc = CreateCompatibleDC(hdc);
+      SetBkMode(mdc, TRANSPARENT);
       ctx = ik::context(hInst, mdc);
 
       HBITMAP hbmp = CreateCompatibleBitmap(hdc, ctx.width, ctx.height);
@@ -121,14 +122,35 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
 
       ReleaseDC(hWnd, hdc);
 
-      game.add_task(
-          ik::type::duration(500), [](ik::type::time_point now, ik::game& g) {
-            game.buttons["title"] = std::make_shared<ik::title>();
-            game.buttons["title"]->rect(
-                ik::type::rect(ctx.width / 2, ctx.height / 2, 100, 50));
-            game.buttons["title"]->visible(true);
-            game.buttons["title"]->start();
-          });
+      game.add_task(ik::type::duration(500),
+                    [](ik::type::time_point now, ik::game& g) {
+                      game.buttons["title"] = std::make_shared<ik::title>();
+                      game.buttons["title"]->real_rect(
+                          ik::type::rect(0, ctx.height / 5, ctx.width, 50));
+                      game.buttons["title"]->show();
+                    });
+      game.add_task(ik::type::duration(1000), [](ik::type::time_point now,
+                                                 ik::game& g) {
+        game.buttons["start"] = std::make_shared<ik::button>(L"开始游戏");
+        game.buttons["start"]->real_rect(
+            ik::type::rect(0, ctx.height / 3, ctx.width, 50));
+        game.buttons["start"]->show();
+
+        game.add_task(ik::type::duration(500), [](ik::type::time_point now,
+                                                  ik::game& g) {
+          game.buttons["detail"] = std::make_shared<ik::button>(L"游戏说明");
+          game.buttons["detail"]->real_rect(ik::type::rect(
+              0, ctx.height / 3 + ctx.height / 9, ctx.width, 50));
+          game.buttons["detail"]->show();
+
+          game.add_task(ik::type::duration(2000),
+                        [](ik::type::time_point now, ik::game& g) {
+                          for (auto& fly : game.buttons) {
+                            fly.second->hide();
+                          }
+                        });
+        });
+      });
     } break;
     case WM_TIMER:
       if (wParam == GLOBAL_TIMER_ID) {

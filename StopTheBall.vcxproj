@@ -157,9 +157,10 @@
     <ClInclude Include="baffle.h" />
     <ClInclude Include="ball.h" />
     <ClInclude Include="base.h" />
-    <ClInclude Include="button.h" />
+    <ClInclude Include="fly_animation.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="game.h" />
+    <ClInclude Include="res.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="sigslot.h" />
     <ClInclude Include="StopTheBall.h" />

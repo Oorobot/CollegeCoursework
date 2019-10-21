@@ -2,44 +2,47 @@
 
 #include <Windows.h>
 #include <memory>
+#include "res.h"
 
 #include "resource.h"
 
 namespace ik {
 
-struct image {
-  HBITMAP hbmp = nullptr;
-  BITMAP bmp = {};
-  HDC hdc = nullptr;
-
-  image() {}
-  image(HINSTANCE hinst, HDC _hdc, int i) {
-    hbmp = LoadBitmap(hinst, MAKEINTRESOURCE(i));
-    GetObject(hbmp, sizeof(bmp), &bmp);
-    hdc = CreateCompatibleDC(_hdc);
-    SelectObject(hdc, hbmp);
-  }
-
-  ~image() {
-    if (hbmp) DeleteObject(hbmp);
-    if (hdc) DeleteDC(hdc);
-  }
-};
-
 struct context {
   int width = 0, height = 0;
-  std::shared_ptr<image> bg, red, blue, green, yellow;
+  pimage bg, red, blue, green, yellow;
+  pfont title_font, btn_font;
 
   context() {
     width = static_cast<int>(GetSystemMetrics(SM_CXSCREEN) * 2 / 5.0);
     height = GetSystemMetrics(SM_CYSCREEN);
   }
   context(HINSTANCE hinst, HDC hdc) : context() {
-    bg.reset(new image(hinst, hdc, IDB_BG));
-    red.reset(new image(hinst, hdc, IDB_RED));
-    blue.reset(new image(hinst, hdc, IDB_BLUE));
-    green.reset(new image(hinst, hdc, IDB_GREEN));
-    yellow.reset(new image(hinst, hdc, IDB_YELLOW));
+    bg = make_image(hinst, hdc, IDB_BG);
+    red = make_image(hinst, hdc, IDB_RED);
+    blue = make_image(hinst, hdc, IDB_BLUE);
+    green = make_image(hinst, hdc, IDB_GREEN);
+    yellow = make_image(hinst, hdc, IDB_YELLOW);
+
+    LOGFONT logfont;
+    memset(&logfont, 0, sizeof(logfont));
+    logfont.lfHeight = 45;
+    logfont.lfWidth = 30;
+    logfont.lfUnderline = 0;
+    logfont.lfItalic = 0;
+    logfont.lfCharSet = GB2312_CHARSET;
+    lstrcpy(logfont.lfFaceName, L"华文行楷");
+
+    title_font = make_font(CreateFontIndirect(&logfont));
+
+    memset(&logfont, 0, sizeof(logfont));
+    logfont.lfHeight = 30;
+    logfont.lfWidth = 30;
+    logfont.lfUnderline = 1;
+    logfont.lfItalic = 0;
+    logfont.lfCharSet = GB2312_CHARSET;
+    lstrcpy(logfont.lfFaceName, L"宋体");
+    btn_font = make_font(CreateFontIndirect(&logfont));
   }
 };
 }  // namespace ik
