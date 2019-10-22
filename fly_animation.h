@@ -7,7 +7,7 @@ namespace ik {
 class fly_animation : public animation {
  private:
   type::rect _real_rect;
-  enum { AnimationDuration = 500 };
+  int _animation_duration = 500;
   bool _inplace = false;
 
   // y=axx+by
@@ -21,8 +21,13 @@ class fly_animation : public animation {
     cal_param();
   }
 
+  void set_animation_duration(unsigned int value) {
+    _animation_duration = static_cast<int>(value);
+    cal_param();
+  }
+
   void cal_param() {
-    double k = _real_rect.y, t = static_cast<double>(AnimationDuration);
+    double k = _real_rect.y, t = static_cast<double>(_animation_duration);
 
     a = (-2 * std::sqrt(10) * std::sqrt((k + 10) * std::pow(t, 4)) -
          k * std::pow(t, 2) - 20 * std::pow(t, 2)) /
@@ -38,14 +43,14 @@ class fly_animation : public animation {
   void on_tick(type::time_point now) {
     if (started() && visible()) {
       int pt = static_cast<int>(time().count());
-      if (pt >= AnimationDuration) {
+      if (pt >= _animation_duration) {
         if (_inplace) visible(false);
         _rect.y = _inplace ? 0 : _real_rect.y;
         stop();
         _inplace = !_inplace;
         return;
       }
-      if (_inplace && pt < AnimationDuration) pt = AnimationDuration - pt;
+      if (_inplace && pt < _animation_duration) pt = _animation_duration - pt;
 
       if (pt == 0 || _real_rect.y == 0)
         _rect.y = 0;

@@ -166,6 +166,7 @@
     <ClInclude Include="StopTheBall.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="type.h" />
+    <ClInclude Include="ui.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="base.cpp" />

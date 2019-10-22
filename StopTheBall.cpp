@@ -3,6 +3,7 @@
 #include "context.h"
 #include "framework.h"
 #include "game.h"
+#include "ui.h"
 
 #define MAX_LOADSTRING 100
 #define GLOBAL_TIMER_ID 98
@@ -116,38 +117,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
       mdc = CreateCompatibleDC(hdc);
       SetBkMode(mdc, TRANSPARENT);
       ctx = ik::context(hInst, mdc);
-
       HBITMAP hbmp = CreateCompatibleBitmap(hdc, ctx.width, ctx.height);
       SelectObject(mdc, hbmp);
-
       ReleaseDC(hWnd, hdc);
 
-      game.add_task(ik::type::duration(500),
-                    [](ik::type::time_point now, ik::game& g) {
-                      game.buttons["title"] = std::make_shared<ik::title>();
-                      game.buttons["title"]->real_rect(
-                          ik::type::rect(0, ctx.height / 5, ctx.width, 50));
-                      game.buttons["title"]->show();
-                    });
-      game.add_task(ik::type::duration(1000), [](ik::type::time_point now,
-                                                 ik::game& g) {
-        game.buttons["start"] = std::make_shared<ik::button>(L"开始游戏");
-        game.buttons["start"]->real_rect(
-            ik::type::rect(0, ctx.height / 3, ctx.width, 50));
-        game.buttons["start"]->show();
-        game.buttons["start"]->fns_on_btn_up.push_back(
-            [](const ik::type::point& pt) {
-              for (auto& o : game.buttons) o.second->hide();
-            });
-
-        game.add_task(ik::type::duration(500), [](ik::type::time_point now,
-                                                  ik::game& g) {
-          game.buttons["detail"] = std::make_shared<ik::button>(L"游戏说明");
-          game.buttons["detail"]->real_rect(ik::type::rect(
-              0, ctx.height / 3 + ctx.height / 9, ctx.width, 50));
-          game.buttons["detail"]->show();
-        });
-      });
+      ui_welcome(ctx);
     } break;
     case WM_TIMER:
       if (wParam == GLOBAL_TIMER_ID) {
