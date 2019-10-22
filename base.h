@@ -3,8 +3,9 @@
 #include <windows.h>
 #include <chrono>
 #include <functional>
+#include <list>
 #include <memory>
-#include <vector>
+#include <string>
 #include "sigslot.h"
 
 #include "context.h"
@@ -27,32 +28,32 @@ class object : public sigslot::has_slots<> {
   bool _mouse_down = false;
 
  public:
-  std::vector<std::function<void(const type::point&)>> fns_on_btn_down,
-      fns_on_btn_up, fns_on_dbl_click, fns_on_mouse_move;
+  std::list<std::pair<std::string, std::function<void(const type::point&)>>>
+      fns_on_btn_down, fns_on_btn_up, fns_on_dbl_click, fns_on_mouse_move;
 
  private:
   void on_btn_down(const type::point& pt) {
     if (pt.in(_rect)) {
       _mouse_down = true;
-      for (auto& fn : fns_on_btn_down) fn(pt);
+      for (auto& fn : fns_on_btn_down) fn.second(pt);
     }
   }
 
   void on_btn_up(const type::point& pt) {
     _mouse_down = false;
     if (pt.in(_rect))
-      for (auto& fn : fns_on_btn_up) fn(pt);
+      for (auto& fn : fns_on_btn_up) fn.second(pt);
   }
 
   void on_dbl_click(const type::point& pt) {
     if (pt.in(_rect))
-      for (auto& fn : fns_on_dbl_click) fn(pt);
+      for (auto& fn : fns_on_dbl_click) fn.second(pt);
   }
 
   void on_mouse_move(const type::point& pt) {
     _mouse_in = pt.in(_rect);
     if (_mouse_in)
-      for (auto& fn : fns_on_mouse_move) fn(pt);
+      for (auto& fn : fns_on_mouse_move) fn.second(pt);
   }
 
  public:

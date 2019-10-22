@@ -11,7 +11,7 @@ namespace ik {
 struct context {
   int width = 0, height = 0;
   image::pimage bg, red, blue, green, yellow;
-  font::pfont title_font, btn_font;
+  font::pfont title_font, btn_font, normal_font;
   int tick_duration = 30;
   COLORREF title_color = RGB(0, 0, 0), mouse_hover_color = RGB(255, 0, 0),
            mouse_down_color = RGB(0, 255, 0), normal_color = RGB(0, 0, 255);
@@ -35,17 +35,16 @@ struct context {
     logfont.lfItalic = 0;
     logfont.lfCharSet = GB2312_CHARSET;
     lstrcpy(logfont.lfFaceName, L"华文行楷");
-
     title_font = font::make_font(CreateFontIndirect(&logfont));
 
-    memset(&logfont, 0, sizeof(logfont));
     logfont.lfHeight = 40;
     logfont.lfWidth = 30;
-    logfont.lfUnderline = 0;
-    logfont.lfItalic = 0;
-    logfont.lfCharSet = GB2312_CHARSET;
     lstrcpy(logfont.lfFaceName, L"宋体");
     btn_font = font::make_font(CreateFontIndirect(&logfont));
+
+    logfont.lfHeight = 13;
+    logfont.lfWidth = 9;
+    normal_font = font::make_font(CreateFontIndirect(&logfont));
   }
 };
 }  // namespace ik
