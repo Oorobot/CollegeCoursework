@@ -10,12 +10,35 @@ namespace ik {
 class ball : public animation {
   friend class game;
 
-  animation_fn _af;
-
  public:
   enum BallType { Green, Yellow, Red, Blue };
 
-  ball(BallType btype, context& ctx) { set_ball_type(btype, ctx); }
+  ball(BallType btype, context& ctx) {
+    set_ball_type(btype, ctx);
+    fns_on_tick.push_back(
+        {"ball_on_tick", [this, &ctx](const type::time_point now) {
+           if (started() && visible()) {
+             const auto t = time().count();
+             switch (_type) {
+               case Green: {
+                 _rect.y = ctx.height - t / 8;
+               } break;
+               case Yellow: {
+                 _rect.y = ctx.height - t;
+               } break;
+               case Red: {
+                 _rect.y = ctx.height - t;
+               } break;
+               case Blue: {
+                 _rect.y = ctx.height - t;
+               } break;
+               default:
+                 break;
+             }
+             if (_rect.y <= 0) stop();
+           }
+         }});
+  }
 
   void set_ball_type(BallType btype, context& ctx) {
     _type = btype;
@@ -40,9 +63,9 @@ class ball : public animation {
   }
   void paint(HDC hdc, context& ctx) const {
     if (!visible()) return;
-    TransparentBlt(hdc, _rect.x, _rect.y, _rect.width / 2, _rect.height / 2,
-                   _ball_image->hdc, 0, 0, _rect.width, _rect.height,
-                   ctx.transparent_color);
+    TransparentBlt(hdc, _rect.x, _rect.y, ctx.ball_radius * 2,
+                   ctx.ball_radius * 2, _ball_image->hdc, 0, 0, _rect.width,
+                   _rect.height, ctx.transparent_color);
   }
 
  private:

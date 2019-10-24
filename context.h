@@ -17,6 +17,7 @@ using animation_fn = std::function<type::point(int, int, int)>;
 struct context {
 
   int width = 0, height = 0;
+  int ball_radius = 12;
   image::pimage bg, red, blue, green, yellow;
   font::pfont title_font, btn_font, normal_font;
   int tick_duration = 30;
@@ -58,12 +59,6 @@ struct context {
     logfont.lfHeight = 13;
     logfont.lfWidth = 9;
     normal_font = font::make_font(CreateFontIndirect(&logfont));
-
-    // animiations
-    fns_animation.push_back(
-        [this](int t, int width, int height) -> type::point {
-          return type::point(t, std::sin(t) * (this->width - width) / 2);
-        });
   }
 };
 }  // namespace ik

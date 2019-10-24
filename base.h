@@ -37,6 +37,7 @@ class object : public sigslot::has_slots<> {
 
  private:
   void on_btn_down(const type::point& pt) {
+    if (!visible()) return;
     if (pt.in(_rect)) {
       _mouse_down = true;
       for (auto& fn : fns_on_btn_down) fn.second(pt);
@@ -44,17 +45,20 @@ class object : public sigslot::has_slots<> {
   }
 
   void on_btn_up(const type::point& pt) {
+    if (!visible()) return;
     _mouse_down = false;
     if (pt.in(_rect))
       for (auto& fn : fns_on_btn_up) fn.second(pt);
   }
 
   void on_dbl_click(const type::point& pt) {
+    if (!visible()) return;
     if (pt.in(_rect))
       for (auto& fn : fns_on_dbl_click) fn.second(pt);
   }
 
   void on_mouse_move(const type::point& pt) {
+    if (!visible()) return;
     _mouse_in = pt.in(_rect);
     if (_mouse_in)
       for (auto& fn : fns_on_mouse_move) fn.second(pt);
