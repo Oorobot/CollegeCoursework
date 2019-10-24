@@ -2,6 +2,7 @@
 
 #include <windows.h>
 #include <chrono>
+#include <map>
 
 namespace ik {
 
@@ -29,23 +30,25 @@ class rect {
         width(rc.right - rc.left),
         height(rc.bottom - rc.top) {}
 
-  rect copy(Field field, int value) const {
+  rect copy(std::map<Field, int> values) const {
     rect new_rect = *this;
-    switch (field) {
-      case Field::X:
-        new_rect.x = value;
-        break;
-      case Field::Y:
-        new_rect.y = value;
-        break;
-      case Field::Width:
-        new_rect.width = value;
-        break;
-      case Field::Height:
-        new_rect.height = value;
-        break;
-      default:
-        break;
+    for (auto& p : values) {
+      switch (p.first) {
+        case Field::X:
+          new_rect.x = p.second;
+          break;
+        case Field::Y:
+          new_rect.y = p.second;
+          break;
+        case Field::Width:
+          new_rect.width = p.second;
+          break;
+        case Field::Height:
+          new_rect.height = p.second;
+          break;
+        default:
+          break;
+      }
     }
     return new_rect;
   }

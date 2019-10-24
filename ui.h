@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ball.h"
 #include "buttons.h"
 #include "game.h"
 
@@ -21,8 +22,11 @@ FORCEINLINE void ui_welcome(ik::context& ctx) {
         ik::type::rect(0, ctx.height / 3, ctx.width, 50));
     game.buttons["start"]->show();
     game.buttons["start"]->fns_on_btn_up.push_back(
-        {"start", [](const ik::type::point& pt) {
+        {"start", [&](const ik::type::point& pt) {
            for (auto& o : game.buttons) o.second->hide();
+           game.add_task(ik::type::duration(500), [&](TASK_PARAM) {
+             game.message(L"ÓÎÏ·¿ªÊ¼", ik::type::duration(1000), ctx);
+           });
          }});
 
     game.add_task(ik::type::duration(500),

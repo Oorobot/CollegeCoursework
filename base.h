@@ -31,6 +31,10 @@ class object : public sigslot::has_slots<> {
   std::list<std::pair<std::string, std::function<void(const type::point&)>>>
       fns_on_btn_down, fns_on_btn_up, fns_on_dbl_click, fns_on_mouse_move;
 
+  std::list<
+      std::pair<std::string, std::function<void(const type::time_point&)>>>
+      fns_on_tick;
+
  private:
   void on_btn_down(const type::point& pt) {
     if (pt.in(_rect)) {
@@ -56,6 +60,10 @@ class object : public sigslot::has_slots<> {
       for (auto& fn : fns_on_mouse_move) fn.second(pt);
   }
 
+  void on_tick(type::time_point now) {
+    for (auto& fn : fns_on_tick) fn.second(now);
+  }
+
  public:
   type::rect rect() const { return _rect; }
   virtual void rect(const type::rect& rect) { _rect = rect; }
@@ -71,41 +79,8 @@ class object : public sigslot::has_slots<> {
     signal::dbl_click_signal.connect(this, &object::on_dbl_click);
     signal::mouse_move_signal.connect(this, &object::on_mouse_move);
   }
-  virtual void on_tick(type::time_point now) {}
 
-  virtual void paint(HDC hdc, context& con) const {}
+  virtual void paint(HDC hdc, context& ctx) const {}
   virtual ~object() {}
-};
-
-class animation : public object {
-  type::time_point _start_time;
-  bool _started;
-
- public:
-  animation() : _started(false) {}
-
-  bool started() const { return _started; }
-
-  void start() {
-    _start_time = type::clock::now();
-    _started = true;
-  }
-
-  bool stop() {
-    if (started()) {
-      _started = false;
-      return true;
-    } else {
-      return false;
-    }
-  }
-
-  type::duration time() const {
-    if (started()) {
-      return std::chrono::duration_cast<type::duration>(type::clock::now() -
-                                                        _start_time);
-    }
-    return type::duration(0);
-  }
 };
 }  // namespace ik

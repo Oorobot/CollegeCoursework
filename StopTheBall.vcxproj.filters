@@ -51,13 +51,13 @@
     <ClInclude Include="res.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="fly_animation.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="type.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="ui.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="animation.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

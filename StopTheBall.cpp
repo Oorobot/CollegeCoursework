@@ -73,9 +73,9 @@ ATOM MyRegisterClass(HINSTANCE hInstance) {
 
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
   hInst = hInstance;
-  HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_CAPTION | WS_SYSMENU, 0,
-                            0, ctx.width, ctx.height, nullptr, nullptr,
-                            hInstance, nullptr);
+  HWND hWnd = CreateWindowW(
+      szWindowClass, szTitle, WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, 0, 0,
+      ctx.width, ctx.height, nullptr, nullptr, hInstance, nullptr);
 
   if (!hWnd) {
     return FALSE;

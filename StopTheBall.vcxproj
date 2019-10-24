@@ -157,7 +157,7 @@
     <ClInclude Include="baffle.h" />
     <ClInclude Include="ball.h" />
     <ClInclude Include="base.h" />
-    <ClInclude Include="fly_animation.h" />
+    <ClInclude Include="animation.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="game.h" />
     <ClInclude Include="res.h" />

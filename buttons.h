@@ -1,6 +1,6 @@
 #pragma once
 
-#include "fly_animation.h"
+#include "animation.h"
 
 namespace ik {
 class text : public fly_animation {
@@ -13,7 +13,7 @@ class text : public fly_animation {
   void paint(HDC hdc, context& ctx) const {
     if (!visible()) return;
     auto rc = this->object::rect().to_RECT();
-    if (font) SelectObject(hdc, ctx.title_font->hfont);
+    if (font) SelectObject(hdc, font->hfont);
     SetTextColor(hdc, color);
     DrawText(hdc, text.c_str(), text.length(), &rc, DT_CENTER);
   }
