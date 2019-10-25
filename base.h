@@ -6,7 +6,7 @@
 #include <list>
 #include <memory>
 #include <string>
-#include "sigslot.h"
+#include "lib/sigslot.h"
 
 #include "context.h"
 #include "type.h"
@@ -35,7 +35,7 @@ class object : public sigslot::has_slots<> {
       std::pair<std::string, std::function<void(const type::time_point&)>>>
       fns_on_tick;
 
- private:
+ public:
   void on_btn_down(const type::point& pt) {
     if (!visible()) return;
     if (pt.in(_rect)) {

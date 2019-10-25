@@ -15,9 +15,12 @@ namespace ik {
 using animation_fn = std::function<type::point(int, int, int)>;
 
 struct context {
+  int green_tool = 5, yellow_tool = 60, red_tool = 5, blue_tool = 40;
 
   int width = 0, height = 0;
-  int ball_radius = 12;
+  int speed = 16;
+  int ball_radius = 16;
+  int max_board_balls = 50;
   image::pimage bg, red, blue, green, yellow;
   font::pfont title_font, btn_font, normal_font;
   int tick_duration = 30;
@@ -25,7 +28,6 @@ struct context {
            mouse_down_color = RGB(0, 255, 0), normal_color = RGB(0, 0, 255);
 
   COLORREF transparent_color = RGB(255, 255, 255);
-  std::vector<animation_fn> fns_animation;
 
   context() {
     width = static_cast<int>(GetSystemMetrics(SM_CXSCREEN) * (2 / 5.0));
@@ -43,7 +45,7 @@ struct context {
     // fonts
     LOGFONT logfont;
     memset(&logfont, 0, sizeof(logfont));
-    logfont.lfHeight = 45;
+    logfont.lfHeight = 60;
     logfont.lfWidth = 30;
     logfont.lfUnderline = 0;
     logfont.lfItalic = 0;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <random>
 #include "base.h"
 #include "game.h"
 
@@ -11,33 +12,98 @@ class ball : public animation {
   friend class game;
 
  public:
-  enum BallType { Green, Yellow, Red, Blue };
+  enum BallType { Green = 1, Red = 2, Yellow = 3, Blue = 4 };
+  enum Status { Top, Run, Bottom };
 
-  ball(BallType btype, context& ctx) {
-    set_ball_type(btype, ctx);
-    fns_on_tick.push_back(
-        {"ball_on_tick", [this, &ctx](const type::time_point now) {
-           if (started() && visible()) {
-             const auto t = time().count();
-             switch (_type) {
-               case Green: {
-                 _rect.y = ctx.height - t / 8;
-               } break;
-               case Yellow: {
-                 _rect.y = ctx.height - t;
-               } break;
-               case Red: {
-                 _rect.y = ctx.height - t;
-               } break;
-               case Blue: {
-                 _rect.y = ctx.height - t;
-               } break;
-               default:
-                 break;
+  std::function<void(BallType)> eliminated_fn;
+
+  int clicked_time = 0;
+  double down_speed = 0;
+  int down_start = -100;
+  Status status = Bottom;
+  int rand_num;
+
+  ball(BallType type, context& ctx) {
+    std::random_device rd;
+    std::uniform_int_distribution<> dist(1, 5);
+    rand_num = dist(rd);
+    fns_on_btn_down.push_back(
+        {"ball_click", [this, &ctx](const type::point& pt) {
+           if (status != Run) return;
+           ++clicked_time;
+           if ((_type == Red && clicked_time >= 2) ||
+               (_type != Red && clicked_time >= 1)) {
+             if (!down_speed) {
+               down(ctx);
+               eliminated_fn(_type);
              }
-             if (_rect.y <= 0) stop();
            }
          }});
+    fns_on_mouse_move.push_back(
+        {"ball_mouse_move", [this, &ctx](const type::point& pt) {
+           if (_type == Yellow) {
+             std::random_device rd;
+             std::uniform_int_distribution<> dist(-10, 10);
+             int dx = dist(rd);
+             while (!((dx = dist(rd)) &&
+                      _rect.x + dx <= ctx.width - ctx.ball_radius * 2 &&
+                      _rect.x + dx >= 0))
+               ;
+             _rect.x += dx;
+           }
+         }});
+    set_ball_type(type, ctx);
+    fns_on_tick.push_back(
+        {"ball_on_tick",
+         [this, &ctx](const type::time_point now) { on_tick(now, ctx); }});
+  }
+
+  void start() {
+    if (status != Top) {
+      animation::start();
+      status = Run;
+    }
+  }
+
+  void down(context& ctx) {
+    stop();
+    status = Bottom;
+    down_speed = (ctx.height - _rect.y) / 500.0;
+    down_start = _rect.y;
+    start();
+  }
+
+  void on_tick(const type::time_point now, context& ctx) {
+    if (started() && visible()) {
+      const auto t = static_cast<int>(time().count());
+      if (down_start == -100) {
+        switch (_type) {
+          case Green: {
+            _rect.y = ctx.height - t / ctx.speed;
+          } break;
+          case Yellow: {
+            _rect.y = ctx.height - t / ctx.speed;
+          } break;
+          case Red: {
+            _rect.y = ctx.height - 2 * t / ctx.speed;
+          } break;
+          case Blue: {
+            _rect.x = static_cast<int>(
+                (ctx.width - ctx.ball_radius * 4) *
+                (1 + std::sin(rand_num * t / 1000.0 + rand_num)) / 2);
+            _rect.y = ctx.height - t / ctx.speed;
+          } break;
+          default:
+            break;
+        }
+      } else {
+        _rect.y = down_start + static_cast<int>(t * down_speed);
+      }
+      if (_rect.y <= 0 || _rect.y > ctx.height) {
+        stop();
+        if (_rect.y <= 0) status = Top;
+      };
+    }
   }
 
   void set_ball_type(BallType btype, context& ctx) {
@@ -58,14 +124,22 @@ class ball : public animation {
       default:
         break;
     }
-    rect(_rect.copy({{type::rect::Width, _ball_image->bmp.bmWidth},
-                     {type::rect::Height, _ball_image->bmp.bmHeight}}));
+    rect(_rect.copy({{type::rect::Width, ctx.ball_radius * 2},
+                     {type::rect::Height, ctx.ball_radius * 2}}));
   }
   void paint(HDC hdc, context& ctx) const {
     if (!visible()) return;
     TransparentBlt(hdc, _rect.x, _rect.y, ctx.ball_radius * 2,
-                   ctx.ball_radius * 2, _ball_image->hdc, 0, 0, _rect.width,
-                   _rect.height, ctx.transparent_color);
+                   ctx.ball_radius * 2, _ball_image->hdc, 0, 0,
+                   _ball_image->bmp.bmWidth, _ball_image->bmp.bmHeight,
+                   ctx.transparent_color);
+    if (_type == Red) {
+      auto rc = _rect.to_RECT();
+      SelectObject(hdc, ctx.normal_font->hfont);
+      SetTextColor(hdc, RGB(255, 255, 255));
+      DrawText(hdc, (clicked_time >= 1 ? L"1" : L"2"), 1, &rc,
+               DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    }
   }
 
  private:
