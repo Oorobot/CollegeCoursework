@@ -26,6 +26,8 @@ class game : public animation {
   type::time_point _prev_paint;
   std::map<ball::BallType, int> scores;
 
+  int prev_green = 0, prev_red = 0, prev_yellow = 0, prev_blue = 0;
+
  public:
   std::map<std::string, std::shared_ptr<text>> buttons;
   std::vector<std::shared_ptr<ball>> balls;
