@@ -1,12 +1,15 @@
 #pragma once
 
+#include <algorithm>
 #include <functional>
 #include <iostream>
 #include <map>
+#include <numeric>
 #include <random>
 #include <string>
 #include "animation.h"
 #include "ball.h"
+#include "buttons.h"
 
 #define TASK_PARAM ik::type::time_point now, ik::game &g
 
@@ -25,8 +28,7 @@ class game : public animation {
   std::list<circulation_task> _circulation_tasks;
   type::time_point _prev_paint;
   std::map<ball::BallType, int> scores;
-
-  int prev_green = 0, prev_red = 0, prev_yellow = 0, prev_blue = 0;
+  std::map<ball::BallType, int> prev_tool_nums;
 
  public:
   std::map<std::string, std::shared_ptr<text>> buttons;
@@ -47,6 +49,7 @@ class game : public animation {
     animation::start();
 
     add_circulation_task(type::duration(500), [&](TASK_PARAM) {
+      if (ctx.speed != ctx.default_speed) return !started();
       std::random_device rd;
       std::mt19937 gen(rd());
       std::uniform_int_distribution<> type_dist(ball::Green, ball::Blue),
@@ -66,7 +69,9 @@ class game : public animation {
   }
 
   void check_tool(context& ctx) {
-    if (scores[ball::Green] % ctx.green_tool == 0) {
+    if (scores[ball::Green] % ctx.green_tool == 0 &&
+        scores[ball::Green] != prev_tool_nums[ball::Green]) {
+      prev_tool_nums[ball::Green] = scores[ball::Green];
       message(L"获得道具：回复", type::duration(1000), ctx);
       add_timed_task(type::duration(500), [this, &ctx](TASK_PARAM) {
         auto it = balls.begin();
@@ -78,10 +83,20 @@ class game : public animation {
           }
         }
       });
-    } else if (scores[ball::Red] % ctx.red_tool == 0) {
+    } else if (scores[ball::Red] % ctx.red_tool == 0 &&
+               scores[ball::Red] != prev_tool_nums[ball::Red]) {
+      prev_tool_nums[ball::Red] = scores[ball::Red];
       message(L"获得道具：灭迹", type::duration(1000), ctx);
       add_timed_task(type::duration(500),
                      [this, &ctx](TASK_PARAM) { balls.clear(); });
+    } else if (scores[ball::Blue] % ctx.blue_tool == 0 &&
+               scores[ball::Blue] != prev_tool_nums[ball::Blue] &&
+               ctx.speed == ctx.default_speed) {
+      prev_tool_nums[ball::Blue] = scores[ball::Blue];
+      message(L"获得道具：时光倒流", type::duration(1000), ctx);
+      add_timed_task(type::duration(500), [this, &ctx](TASK_PARAM) {
+        ctx.speed = ctx.default_speed * 2;
+      });
     }
   }
 
@@ -95,6 +110,7 @@ class game : public animation {
     _timed_tasks.clear();
     _circulation_tasks.clear();
     scores.clear();
+    prev_tool_nums.clear();
     balls.clear();
     buttons.clear();
     signal::tick_signal.disconnect_all();
@@ -163,10 +179,46 @@ class game : public animation {
 
     SelectObject(hdc, ctx.normal_font->hfont);
     SetTextColor(hdc, ctx.title_color);
-    if (false) {
-      int ball_on_board = 0;
-      for (auto& b : balls)
-        if (b->status == ball::Status::Top) ball_on_board++;
+    if (started()) {
+      int ball_on_board = 0, ball_running = 0;
+      for (auto& b : balls) {
+        if (b->status == ball::Status::Top)
+          ball_on_board++;
+        else if (b->status == ball::Status::Run)
+          ball_running++;
+      }
+
+      if (ctx.speed != ctx.default_speed && ball_running == 0) {
+        message(L"时光倒流 结束", type::duration(1000), ctx);
+        ctx.speed = ctx.default_speed;
+      }
+
+      wchar_t fmt_buf[50] = {0};
+      info.push_back('\n');
+
+      wsprintf(fmt_buf, L"绿色 回复 %d / %d\0", scores[ball::Green],
+               ((scores[ball::Green] + ctx.green_tool) / ctx.green_tool) *
+                   ctx.green_tool);
+      info += fmt_buf;
+      info.push_back('\n');
+
+      wsprintf(fmt_buf, L"黄色 ** %d / %d\0", scores[ball::Yellow],
+               ((scores[ball::Yellow] + ctx.yellow_tool) / ctx.yellow_tool) *
+                   ctx.yellow_tool);
+      info += fmt_buf;
+      info.push_back('\n');
+
+      wsprintf(
+          fmt_buf, L"红色 灭迹 %d / %d\0", scores[ball::Red],
+          ((scores[ball::Red] + ctx.red_tool) / ctx.red_tool) * ctx.red_tool);
+      info += fmt_buf;
+      info.push_back('\n');
+
+      wsprintf(fmt_buf, L"蓝色 时光倒流 %d / %d\0", scores[ball::Blue],
+               ((scores[ball::Blue] + ctx.blue_tool) / ctx.blue_tool) *
+                   ctx.blue_tool);
+      info += fmt_buf;
+      info.push_back('\n');
 
       Rectangle(hdc, -1, 0, ctx.width, ctx.ball_radius * 2);
       double percent = ball_on_board * 1.0 / ctx.max_board_balls;
@@ -178,8 +230,9 @@ class game : public animation {
                DT_VCENTER | DT_CENTER | DT_SINGLELINE);
       if (percent >= 1.0) stop(score, time(), ctx);
     }
-    TextOut(hdc, 5, started() ? ctx.ball_radius * 2 : 5, info.c_str(),
-            info.length());
+    DrawText(hdc, info.c_str(), info.length(),
+             &RECT({5, started() ? ctx.ball_radius * 2 : 5, 300, 300}),
+             DT_LEFT | DT_TOP);
   }
 };
 

@@ -15,12 +15,13 @@ namespace ik {
 using animation_fn = std::function<type::point(int, int, int)>;
 
 struct context {
-  int green_tool = 5, yellow_tool = 60, red_tool = 5, blue_tool = 40;
+  int green_tool = 5, yellow_tool = 5, red_tool = 5, blue_tool = 5;
 
   int width = 0, height = 0;
+  enum { default_speed = 16 };
   int speed = 16;
   int ball_radius = 16;
-  int max_board_balls = 50;
+  int max_board_balls = 100;
   image::pimage bg, red, blue, green, yellow;
   font::pfont title_font, btn_font, normal_font;
   int tick_duration = 30;
@@ -50,12 +51,11 @@ struct context {
     logfont.lfUnderline = 0;
     logfont.lfItalic = 0;
     logfont.lfCharSet = GB2312_CHARSET;
-    lstrcpy(logfont.lfFaceName, L"华文行楷");
+    lstrcpy(logfont.lfFaceName, L"宋体");
     title_font = font::make_font(CreateFontIndirect(&logfont));
 
     logfont.lfHeight = 40;
     logfont.lfWidth = 30;
-    lstrcpy(logfont.lfFaceName, L"宋体");
     btn_font = font::make_font(CreateFontIndirect(&logfont));
 
     logfont.lfHeight = 13;

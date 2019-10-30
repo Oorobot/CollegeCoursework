@@ -35,6 +35,7 @@ class ball : public animation {
                (_type != Red && clicked_time >= 1)) {
              if (!down_speed) {
                down(ctx);
+               status = Bottom;
                eliminated_fn(_type);
              }
            }
