@@ -231,7 +231,7 @@ class game : public animation {
       wchar_t fmt_buf[50] = {0};
       info.push_back('\n');
 
-      wsprintf(fmt_buf, L"绿色 回复*%d %d/%d\0", tool_count[ball::Green],
+      wsprintf(fmt_buf, L"绿色 回复(G)*%d %d/%d\0", tool_count[ball::Green],
                scores[ball::Green],
                ((scores[ball::Green] + ctx.green_tool) / ctx.green_tool) *
                    ctx.green_tool);
@@ -239,13 +239,13 @@ class game : public animation {
       info.push_back('\n');
 
       wsprintf(
-          fmt_buf, L"红色 灭迹*%d %d/%d\0", tool_count[ball::Red],
+          fmt_buf, L"红色 灭迹(R)*%d %d/%d\0", tool_count[ball::Red],
           scores[ball::Red],
           ((scores[ball::Red] + ctx.red_tool) / ctx.red_tool) * ctx.red_tool);
       info += fmt_buf;
       info.push_back('\n');
 
-      wsprintf(fmt_buf, L"蓝色 时光倒流*%d %d/%d\0", tool_count[ball::Blue],
+      wsprintf(fmt_buf, L"蓝色 时光倒流(B)*%d %d/%d\0", tool_count[ball::Blue],
                scores[ball::Blue],
                ((scores[ball::Blue] + ctx.blue_tool) / ctx.blue_tool) *
                    ctx.blue_tool);
