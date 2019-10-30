@@ -163,7 +163,6 @@
     <ClInclude Include="game.h" />
     <ClInclude Include="res.h" />
     <ClInclude Include="Resource.h" />
-    <ClInclude Include="sigslot.h" />
     <ClInclude Include="StopTheBall.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="type.h" />

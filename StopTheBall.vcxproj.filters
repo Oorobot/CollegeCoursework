@@ -33,9 +33,6 @@
     <ClInclude Include="game.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="sigslot.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="ball.h">
       <Filter>头文件</Filter>
     </ClInclude>

@@ -18,6 +18,7 @@ extern sigslot::signal1<const type::point&> btn_down_signal;
 extern sigslot::signal1<const type::point&> btn_up_signal;
 extern sigslot::signal1<const type::point&> dbl_click_signal;
 extern sigslot::signal1<const type::point&> mouse_move_signal;
+extern sigslot::signal1<char> key_signal;
 }  // namespace signal
 
 class object : public sigslot::has_slots<> {
@@ -30,6 +31,8 @@ class object : public sigslot::has_slots<> {
  public:
   std::list<std::pair<std::string, std::function<void(const type::point&)>>>
       fns_on_btn_down, fns_on_btn_up, fns_on_dbl_click, fns_on_mouse_move;
+
+  std::list<std::pair<std::string, std::function<void(char)>>> fns_on_key;
 
   std::list<
       std::pair<std::string, std::function<void(const type::time_point&)>>>
@@ -68,6 +71,10 @@ class object : public sigslot::has_slots<> {
     for (auto& fn : fns_on_tick) fn.second(now);
   }
 
+  void on_key(char key) {
+    for (auto& fn : fns_on_key) fn.second(key);
+  }
+
  public:
   type::rect rect() const { return _rect; }
   virtual void rect(const type::rect& rect) { _rect = rect; }
@@ -82,6 +89,7 @@ class object : public sigslot::has_slots<> {
     signal::btn_up_signal.connect(this, &object::on_btn_up);
     signal::dbl_click_signal.connect(this, &object::on_dbl_click);
     signal::mouse_move_signal.connect(this, &object::on_mouse_move);
+    signal::key_signal.connect(this, &object::on_key);
   }
 
   virtual void paint(HDC hdc, context& ctx) const {}

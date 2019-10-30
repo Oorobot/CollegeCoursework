@@ -29,6 +29,7 @@ class game : public animation {
   type::time_point _prev_paint;
   std::map<ball::BallType, int> scores;
   std::map<ball::BallType, int> prev_tool_nums;
+  std::map<ball::BallType, int> tool_count;
 
  public:
   std::map<std::string, std::shared_ptr<text>> buttons;
@@ -66,37 +67,69 @@ class game : public animation {
       balls.push_back(b);
       return !started();
     });
+
+    fns_on_key.push_back(
+        {"game_on_key", [this, &ctx](char c) { use_tool(c, ctx); }});
+  }
+
+#define CHECK_TOOL_COUNT(type)      \
+  if (tool_count[type] <= 0) break; \
+  tool_count[type]--;
+
+  void use_tool(char t, context& ctx) {
+    if (!started()) return;
+    switch (t) {
+      case 'G':
+        CHECK_TOOL_COUNT(ball::Green);
+        message(L"使用道具：回复", type::duration(1000), ctx);
+        add_timed_task(type::duration(500), [this, &ctx](TASK_PARAM) {
+          auto it = balls.begin();
+          while (it != balls.end()) {
+            if ((*it)->status == ball::Top) {
+              it = balls.erase(it);
+            } else {
+              ++it;
+            }
+          }
+        });
+        break;
+      case 'Y':
+        break;
+      case 'R':
+        CHECK_TOOL_COUNT(ball::Red);
+        message(L"使用道具：灭迹", type::duration(1000), ctx);
+        add_timed_task(type::duration(500),
+                       [this, &ctx](TASK_PARAM) { balls.clear(); });
+        break;
+      case 'B':
+        CHECK_TOOL_COUNT(ball::Blue);
+        message(L"使用道具：时光倒流", type::duration(1000), ctx);
+        add_timed_task(type::duration(500), [this, &ctx](TASK_PARAM) {
+          ctx.speed = ctx.default_speed * 2;
+        });
+        break;
+      default:
+        break;
+    }
   }
 
   void check_tool(context& ctx) {
     if (scores[ball::Green] % ctx.green_tool == 0 &&
         scores[ball::Green] != prev_tool_nums[ball::Green]) {
       prev_tool_nums[ball::Green] = scores[ball::Green];
+      tool_count[ball::Green]++;
       message(L"获得道具：回复", type::duration(1000), ctx);
-      add_timed_task(type::duration(500), [this, &ctx](TASK_PARAM) {
-        auto it = balls.begin();
-        while (it != balls.end()) {
-          if ((*it)->status == ball::Top) {
-            it = balls.erase(it);
-          } else {
-            ++it;
-          }
-        }
-      });
     } else if (scores[ball::Red] % ctx.red_tool == 0 &&
                scores[ball::Red] != prev_tool_nums[ball::Red]) {
       prev_tool_nums[ball::Red] = scores[ball::Red];
       message(L"获得道具：灭迹", type::duration(1000), ctx);
-      add_timed_task(type::duration(500),
-                     [this, &ctx](TASK_PARAM) { balls.clear(); });
+      tool_count[ball::Red]++;
     } else if (scores[ball::Blue] % ctx.blue_tool == 0 &&
                scores[ball::Blue] != prev_tool_nums[ball::Blue] &&
                ctx.speed == ctx.default_speed) {
       prev_tool_nums[ball::Blue] = scores[ball::Blue];
       message(L"获得道具：时光倒流", type::duration(1000), ctx);
-      add_timed_task(type::duration(500), [this, &ctx](TASK_PARAM) {
-        ctx.speed = ctx.default_speed * 2;
-      });
+      tool_count[ball::Blue]++;
     }
   }
 
@@ -113,6 +146,8 @@ class game : public animation {
     prev_tool_nums.clear();
     balls.clear();
     buttons.clear();
+    tool_count.clear();
+    fns_on_key.clear();
     signal::tick_signal.disconnect_all();
     signal::tick_signal.connect(dynamic_cast<object*>(this), &object::on_tick);
   }
@@ -196,27 +231,28 @@ class game : public animation {
       wchar_t fmt_buf[50] = {0};
       info.push_back('\n');
 
-      wsprintf(fmt_buf, L"绿色 回复 %d / %d\0", scores[ball::Green],
+      wsprintf(fmt_buf, L"绿色 回复*%d %d/%d\0", tool_count[ball::Green],
+               scores[ball::Green],
                ((scores[ball::Green] + ctx.green_tool) / ctx.green_tool) *
                    ctx.green_tool);
       info += fmt_buf;
       info.push_back('\n');
 
-      wsprintf(fmt_buf, L"黄色 ** %d / %d\0", scores[ball::Yellow],
-               ((scores[ball::Yellow] + ctx.yellow_tool) / ctx.yellow_tool) *
-                   ctx.yellow_tool);
-      info += fmt_buf;
-      info.push_back('\n');
-
       wsprintf(
-          fmt_buf, L"红色 灭迹 %d / %d\0", scores[ball::Red],
+          fmt_buf, L"红色 灭迹*%d %d/%d\0", tool_count[ball::Red],
+          scores[ball::Red],
           ((scores[ball::Red] + ctx.red_tool) / ctx.red_tool) * ctx.red_tool);
       info += fmt_buf;
       info.push_back('\n');
 
-      wsprintf(fmt_buf, L"蓝色 时光倒流 %d / %d\0", scores[ball::Blue],
+      wsprintf(fmt_buf, L"蓝色 时光倒流*%d %d/%d\0", tool_count[ball::Blue],
+               scores[ball::Blue],
                ((scores[ball::Blue] + ctx.blue_tool) / ctx.blue_tool) *
                    ctx.blue_tool);
+      info += fmt_buf;
+      info.push_back('\n');
+
+      wsprintf(fmt_buf, L"黄色 %d\0", scores[ball::Yellow]);
       info += fmt_buf;
       info.push_back('\n');
 

@@ -145,6 +145,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
       ik::signal::mouse_move_signal.emit(
           ik::type::point(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)));
       break;
+    case WM_KEYUP:
+      ik::signal::key_signal.emit(std::toupper(wParam));
+      break;
     case WM_DESTROY:
       PostQuitMessage(0);
       break;
