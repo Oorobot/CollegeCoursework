@@ -125,28 +125,28 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
     } break;
     case WM_TIMER:
       if (wParam == GLOBAL_TIMER_ID) {
-        ik::signal::tick_signal.emit(ik::type::clock::now());
+        ik::signals::tick_signal.emit(ik::type::clock::now());
         InvalidateRect(hWnd, NULL, FALSE);
       }
       break;
     case WM_LBUTTONDOWN:
-      ik::signal::btn_down_signal.emit(
+      ik::signals::btn_down_signal.emit(
           ik::type::point(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)));
       break;
     case WM_LBUTTONUP:
-      ik::signal::btn_up_signal.emit(
+      ik::signals::btn_up_signal.emit(
           ik::type::point(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)));
       break;
     case WM_LBUTTONDBLCLK:
-      ik::signal::dbl_click_signal.emit(
+      ik::signals::dbl_click_signal.emit(
           ik::type::point(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)));
       break;
     case WM_MOUSEMOVE:
-      ik::signal::mouse_move_signal.emit(
+      ik::signals::mouse_move_signal.emit(
           ik::type::point(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)));
       break;
     case WM_KEYUP:
-      ik::signal::key_signal.emit(std::toupper(wParam));
+      ik::signals::key_signal.emit(std::toupper(wParam));
       break;
     case WM_DESTROY:
       PostQuitMessage(0);

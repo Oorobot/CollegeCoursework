@@ -148,8 +148,8 @@ class game : public animation {
     buttons.clear();
     tool_count.clear();
     fns_on_key.clear();
-    signal::tick_signal.disconnect_all();
-    signal::tick_signal.connect(dynamic_cast<object*>(this), &object::on_tick);
+    signals::tick_signal.disconnect_all();
+    signals::tick_signal.connect(dynamic_cast<object*>(this), &object::on_tick);
   }
 
   void message(const std::wstring& txt, type::duration close, context& ctx) {

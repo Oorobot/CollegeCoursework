@@ -4,24 +4,54 @@
 #include <chrono>
 #include <functional>
 #include <list>
+#include <map>
 #include <memory>
 #include <string>
-#include "lib/sigslot.h"
 
 #include "context.h"
 #include "type.h"
 
 namespace ik {
-namespace signal {
-extern sigslot::signal1<type::time_point> tick_signal;
-extern sigslot::signal1<const type::point&> btn_down_signal;
-extern sigslot::signal1<const type::point&> btn_up_signal;
-extern sigslot::signal1<const type::point&> dbl_click_signal;
-extern sigslot::signal1<const type::point&> mouse_move_signal;
-extern sigslot::signal1<char> key_signal;
-}  // namespace signal
 
-class object : public sigslot::has_slots<> {
+class object;
+
+namespace signals {
+
+template <typename P>
+class signal : public std::list<std::pair<object*, void (object::*)(P)>> {
+ public:
+  void connect(object* pobj, void (object::*pfunc)(P)) {
+    this->push_back({pobj, pfunc});
+  }
+
+  void disconnect(object* pobj) {
+    auto it =
+        std::find_if(std::begin(*this), std::end(*this),
+                     [pobj](const std::pair<object*, void (object::*)(P)>& p) {
+                       return p.first == pobj;
+                     });
+    if (it != this->end()) this->erase(it);
+  }
+
+  void disconnect_all() { this->clear(); }
+
+  void emit(P p) {
+    for (auto& pair : *this) {
+      std::invoke(pair.second, *(pair.first), p);
+    }
+  }
+};
+
+extern signal<type::time_point> tick_signal;
+extern signal<const type::point&> btn_down_signal;
+extern signal<const type::point&> btn_up_signal;
+extern signal<const type::point&> dbl_click_signal;
+extern signal<const type::point&> mouse_move_signal;
+extern signal<char> key_signal;
+
+}  // namespace signals
+
+class object {
  protected:
   type::rect _rect;
   bool _visible = true;
@@ -84,15 +114,22 @@ class object : public sigslot::has_slots<> {
 
  public:
   object() {
-    signal::tick_signal.connect(this, &object::on_tick);
-    signal::btn_down_signal.connect(this, &object::on_btn_down);
-    signal::btn_up_signal.connect(this, &object::on_btn_up);
-    signal::dbl_click_signal.connect(this, &object::on_dbl_click);
-    signal::mouse_move_signal.connect(this, &object::on_mouse_move);
-    signal::key_signal.connect(this, &object::on_key);
+    signals::tick_signal.connect(this, &object::on_tick);
+    signals::btn_down_signal.connect(this, &object::on_btn_down);
+    signals::btn_up_signal.connect(this, &object::on_btn_up);
+    signals::dbl_click_signal.connect(this, &object::on_dbl_click);
+    signals::mouse_move_signal.connect(this, &object::on_mouse_move);
+    signals::key_signal.connect(this, &object::on_key);
   }
 
   virtual void paint(HDC hdc, context& ctx) const {}
-  virtual ~object() {}
+  virtual ~object() {
+    signals::tick_signal.disconnect(this);
+    signals::btn_down_signal.disconnect(this);
+    signals::btn_up_signal.disconnect(this);
+    signals::dbl_click_signal.disconnect(this);
+    signals::mouse_move_signal.disconnect(this);
+    signals::key_signal.disconnect(this);
+  }
 };
 }  // namespace ik

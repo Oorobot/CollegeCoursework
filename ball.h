@@ -25,7 +25,7 @@ class ball : public animation {
 
   ball(BallType type, context& ctx) {
     std::random_device rd;
-    std::uniform_int_distribution<> dist(1, 5);
+    std::uniform_int_distribution<> dist(1, 3);
     rand_num = dist(rd);
     fns_on_btn_down.push_back(
         {"ball_click", [this, &ctx](const type::point& pt) {
