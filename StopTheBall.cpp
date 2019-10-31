@@ -117,6 +117,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
       mdc = CreateCompatibleDC(hdc);
       SetBkMode(mdc, TRANSPARENT);
       ctx = ik::context(hInst, mdc);
+      ctx.hwnd = hWnd;
       HBITMAP hbmp = CreateCompatibleBitmap(hdc, ctx.width, ctx.height);
       SelectObject(mdc, hbmp);
       ReleaseDC(hWnd, hdc);

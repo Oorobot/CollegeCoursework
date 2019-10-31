@@ -4,6 +4,23 @@
 #include "buttons.h"
 #include "game.h"
 
+LPCWSTR manual =
+    L"Stop The Ball\n"
+    L"欢迎来到，Stop The Ball ！！！\n"
+    L"这是一个考验你的反应的小游戏，相信你会在这里找到乐趣的。\n"
+    L"接下来我简单介绍一下：\n"
+    L"游戏玩法：顾名思义，Stop The Ball，\n"
+    L"阻止这些球，防止上方的进度条增长到100%，不然的话游戏结束。\n"
+    L"用鼠标点击球即可阻止绿色球，但请注意还有其他球：\n"
+    L"黄色球：需要你快速点击，不然它会脱离你鼠标点击的范围。\n"
+    L"蓝色球：有波浪般的移动轨迹\n"
+    L"红色球：速度较快，并需点击两下才行\n"
+    L"当然，游戏难度并不小，所以我们还提供了强有力的道具：\n"
+    L"回复（G）：将进度条变为0%\n"
+    L"时光倒流（B）：球的速度开始变慢，并且不会出现新的球，直到画面的球全部消失\n"
+    L"灭迹（R）：瞬间毁灭掉屏幕出现的所有球。\n"
+    L"游戏介绍完了，玩得愉快！！！\n";
+
 FORCEINLINE void ui_welcome(ik::context& ctx) {
   game.buttons["title"] = std::make_shared<ik::text>();
   game.buttons["title"]->text = L"Stop The Ball";
@@ -20,6 +37,10 @@ FORCEINLINE void ui_welcome(ik::context& ctx) {
   game.buttons["detail"]->text = L"游戏说明";
   game.buttons["detail"]->real_rect(
       ik::type::rect(0, ctx.height * 4 / 9, ctx.width, 50));
+  game.buttons["detail"]->fns_on_btn_up.push_back(
+      {"manual", [&](const ik::type::point& pt) {
+         MessageBox(ctx.hwnd, manual, L"游戏说明", MB_OK);
+       }});
 
   game.buttons["exit"] = std::make_shared<ik::button>();
   game.buttons["exit"]->text = L"退出";

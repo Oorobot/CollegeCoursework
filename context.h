@@ -12,9 +12,9 @@
 
 namespace ik {
 
-using animation_fn = std::function<type::point(int, int, int)>;
-
 struct context {
+  HWND hwnd = nullptr;
+
   int green_tool = 5, yellow_tool = 5, red_tool = 5, blue_tool = 5;
 
   int width = 0, height = 0;
