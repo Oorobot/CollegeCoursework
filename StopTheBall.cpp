@@ -13,7 +13,6 @@ WCHAR szTitle[MAX_LOADSTRING];
 WCHAR szWindowClass[MAX_LOADSTRING];
 
 HDC mdc = nullptr;
-
 ik::game game;
 ik::context ctx;
 
@@ -55,18 +54,18 @@ ATOM MyRegisterClass(HINSTANCE hInstance) {
   WNDCLASSEXW wcex;
 
   wcex.cbSize = sizeof(WNDCLASSEX);
-
+  auto icon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON1));
   wcex.style = CS_HREDRAW | CS_VREDRAW;
   wcex.lpfnWndProc = WndProc;
   wcex.cbClsExtra = 0;
   wcex.cbWndExtra = 0;
   wcex.hInstance = hInstance;
-  wcex.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_STOPTHEBALL));
-  wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
+  wcex.hIcon = icon;
+  wcex.hIconSm = icon;
+  wcex.hCursor = LoadCursor(hInstance, MAKEINTRESOURCE(IDC_CURSOR1));
   wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
   wcex.lpszMenuName = MAKEINTRESOURCEW(IDC_STOPTHEBALL);
   wcex.lpszClassName = szWindowClass;
-  wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
 
   return RegisterClassExW(&wcex);
 }
@@ -96,6 +95,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
         case IDM_ABOUT:
           DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
           break;
+        case ID_HELP:
+          show_help(hWnd);
+          break;
         case IDM_EXIT:
           DestroyWindow(hWnd);
           break;
@@ -121,7 +123,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
       HBITMAP hbmp = CreateCompatibleBitmap(hdc, ctx.width, ctx.height);
       SelectObject(mdc, hbmp);
       ReleaseDC(hWnd, hdc);
-
       ui_welcome(ctx);
     } break;
     case WM_TIMER:

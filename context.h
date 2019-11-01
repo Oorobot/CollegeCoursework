@@ -21,7 +21,7 @@ struct context {
   enum { default_speed = 16 };
   int speed = 16;
   int ball_radius = 16;
-  int max_board_balls = 100;
+  int max_board_balls = 50;
   image::pimage bg, red, blue, green, yellow;
   font::pfont title_font, btn_font, normal_font;
   int tick_duration = 30;

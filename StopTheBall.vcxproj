@@ -155,7 +155,6 @@
   <ItemGroup>
     <ClInclude Include="buttons.h" />
     <ClInclude Include="context.h" />
-    <ClInclude Include="baffle.h" />
     <ClInclude Include="ball.h" />
     <ClInclude Include="base.h" />
     <ClInclude Include="animation.h" />
@@ -179,10 +178,12 @@
     <Image Include="img\bg.bmp" />
     <Image Include="img\blue.bmp" />
     <Image Include="img\green.bmp" />
+    <Image Include="img\logo.ico" />
     <Image Include="img\red.bmp" />
     <Image Include="img\yellow.bmp" />
-    <Image Include="small.ico" />
-    <Image Include="StopTheBall.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\up_rl.cur" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

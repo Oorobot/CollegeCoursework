@@ -17,9 +17,14 @@ LPCWSTR manual =
     L"红色球：速度较快，并需点击两下才行\n"
     L"当然，游戏难度并不小，所以我们还提供了强有力的道具：\n"
     L"回复（G）：将进度条变为0%\n"
-    L"时光倒流（B）：球的速度开始变慢，并且不会出现新的球，直到画面的球全部消失\n"
+    L"时光倒流（B）：球的速度开始变慢，并且不会出现新的球，直到画面的球全部消失"
+    L"\n"
     L"灭迹（R）：瞬间毁灭掉屏幕出现的所有球。\n"
     L"游戏介绍完了，玩得愉快！！！\n";
+
+inline void show_help(HWND hwnd) {
+  MessageBox(hwnd, manual, L"游戏说明", MB_OK);
+}
 
 FORCEINLINE void ui_welcome(ik::context& ctx) {
   game.buttons["title"] = std::make_shared<ik::text>();
@@ -38,9 +43,7 @@ FORCEINLINE void ui_welcome(ik::context& ctx) {
   game.buttons["detail"]->real_rect(
       ik::type::rect(0, ctx.height * 4 / 9, ctx.width, 50));
   game.buttons["detail"]->fns_on_btn_up.push_back(
-      {"manual", [&](const ik::type::point& pt) {
-         MessageBox(ctx.hwnd, manual, L"游戏说明", MB_OK);
-       }});
+      {"manual", [&](const ik::type::point& pt) { show_help(ctx.hwnd); }});
 
   game.buttons["exit"] = std::make_shared<ik::button>();
   game.buttons["exit"]->text = L"退出";

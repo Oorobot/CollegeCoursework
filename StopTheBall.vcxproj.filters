@@ -36,9 +36,6 @@
     <ClInclude Include="ball.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="baffle.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="context.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -72,12 +69,6 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="small.ico">
-      <Filter>资源文件</Filter>
-    </Image>
-    <Image Include="StopTheBall.ico">
-      <Filter>资源文件</Filter>
-    </Image>
     <Image Include="img\bg.bmp">
       <Filter>资源文件</Filter>
     </Image>
@@ -93,5 +84,13 @@
     <Image Include="img\yellow.bmp">
       <Filter>资源文件</Filter>
     </Image>
+    <Image Include="img\logo.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\up_rl.cur">
+      <Filter>资源文件</Filter>
+    </None>
   </ItemGroup>
 </Project>
