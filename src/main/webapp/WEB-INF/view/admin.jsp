@@ -15,57 +15,29 @@
 	rel="stylesheet">
 </head>
 <body>
-	<!-- 导航栏 -->
-	<nav class="navbar navbar-default">
-		<div class="container-fluid">
-			<!-- Brand and toggle get grouped for better mobile display -->
-			<div class="navbar-header">
-				<button type="button" class="navbar-toggle collapsed"
-					data-toggle="collapse" data-target="#bs-example-navbar-collapse-1"
-					aria-expanded="false">
-					<span class="sr-only">Toggle navigation</span> <span
-						class="icon-bar"></span> <span class="icon-bar"></span> <span
-						class="icon-bar"></span>
-				</button>
-				<a class="navbar-brand" href="#">管理员</a>
-			</div>
-			
-			<!-- 导航栏主题 -->
-			<div class="collapse navbar-collapse"
-				id="bs-example-navbar-collapse-1">
-				<ul class="nav navbar-nav">
-					<li><a href="#">课程信息</a></li>
-					<li class="dropdown"><a href="#" class="dropdown-toggle"
-						data-toggle="dropdown" role="button" aria-haspopup="true"
-						aria-expanded="false">管理页面 <span class="caret"></span></a>
-						<ul class="dropdown-menu">
-							<li><a href="${pageContext.request.contextPath}/admin/term">学期管理</a></li>
-							<li role="separator" class="divider"></li>
-							<li><a href="#">学院管理</a></li>
-							<li><a href="#">课程管理</a></li>
-							<li role="separator" class="divider"></li>
-							<li><a href="#">学生管理</a></li>
-							<li><a href="#">教师管理</a></li>
-						</ul></li>
-				</ul>
-				<!-- 搜索栏 -->
-				<form class="navbar-form navbar-left">
-					<div class="form-group">
-						<input type="text" class="form-control" placeholder="Search">
-					</div>
-					<button type="submit" class="btn btn-default">查询</button>
-				</form>
-				<ul class="nav navbar-nav navbar-right">
-					<li><a href="#">退出</a></li>
-				</ul>
-			</div>
-			<!-- /.navbar-collapse -->
-		</div>
-		<!-- /.container-fluid -->
-	</nav>
-	<!-- 主体内容 -->
+	<!-- 导航栏  -->
+	<jsp:include page="admin-nav.jsp"></jsp:include>
+	<!-- 主体内容  -->
 	<c:if test="${fn:contains(category,'term') }">
 		<jsp:include page="term.jsp"></jsp:include>
 	</c:if>
+	<c:if test="${fn:contains(category,'academy') }">
+		<jsp:include page="academies.jsp"></jsp:include>
+	</c:if>
+	<c:if test="${fn:contains(category,'course') }">
+		<jsp:include page="courses.jsp"></jsp:include>
+	</c:if>
+	<c:if test="${fn:contains(category,'student') }">
+		<jsp:include page="students.jsp"></jsp:include>
+	</c:if>
+	<c:if test="${fn:contains(category,'teacher') }">
+		<jsp:include page="teachers.jsp"></jsp:include>
+	</c:if>
 </body>
+<c:if test="${empty category}">
+<script type="text/javascript"
+	src="${pageContext.request.contextPath}/jquery-3.4.1.min.js"></script>
+<script
+	src="${pageContext.request.contextPath}/bootstrap/js/bootstrap.min.js"></script>
+</c:if>
 </html>

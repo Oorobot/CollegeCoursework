@@ -3,7 +3,7 @@ package com.elective.school.util;
 import java.security.MessageDigest;
 import java.util.Base64;
 
-public class MD5 {
+public class Method {
 
 	static public String md5Encoding(String message) {
 		String temp = "";

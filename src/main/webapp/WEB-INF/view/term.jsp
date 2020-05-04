@@ -42,11 +42,11 @@
 					</div>
 				</div>
 			</div>
-			<c:if test="${!empty addTermSuccess }">
-				<label style="color: green;">${addTermSuccess }</label>
+			<c:if test="${!empty success }">
+				<label style="color: green;">${success }</label>
 			</c:if>
-			<c:if test="${!empty addTermError }">
-				<label style="color: red;">${addTermError }</label>
+			<c:if test="${!empty error }">
+				<label style="color: red;">${error }</label>
 			</c:if>
 		</div><!-- 添加term按钮 -->
 		<div class="term_table">

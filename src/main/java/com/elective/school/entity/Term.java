@@ -45,7 +45,6 @@ public class Term {
 
 	public Term() {
 		super();
-		// TODO Auto-generated constructor stub
 	}
 
 	public Term(Integer id, String term, Integer status) {
