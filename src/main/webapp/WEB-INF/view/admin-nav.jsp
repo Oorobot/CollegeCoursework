@@ -19,7 +19,7 @@
 						class="icon-bar"></span> <span class="icon-bar"></span> <span
 						class="icon-bar"></span>
 				</button>
-				<a class="navbar-brand" href="#">管理员</a>
+				<a class="navbar-brand" href="${pageContext.request.contextPath}/admin">管理员</a>
 			</div>
 
 			<!-- 导航栏主题 -->
@@ -49,7 +49,7 @@
 					<button type="submit" class="btn btn-default">查询</button>
 				</form>
 				<ul class="nav navbar-nav navbar-right">
-					<li><a href="#">退出</a></li>
+					<li><a href="${pageContext.request.contextPath}/logout">退出</a></li>
 				</ul>
 			</div>
 			<!-- /.navbar-collapse -->

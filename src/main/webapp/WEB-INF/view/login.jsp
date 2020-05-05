@@ -70,26 +70,9 @@
 <script src="bootstrap/js/bootstrap.min.js"></script>
 <script type="text/javascript">
 	function login() {
-		var list = document.getElementsByName("type");
-		for (i = 0; i < list.length; i++) {
-			if (list[i].checked == true) {
-				if (list[i].value == "student") {
-					document.form.action = "${pageContext.request.contextPath}/student";
-					document.form.submit();
-					break;
-				}
-				if (list[i].value == "teacher") {
-					document.form.action = "${pageContext.request.contextPath}/teacher";
-					document.form.submit();
-					break;
-				}
-				if (list[i].value == "admin") {
-					document.form.action = "${pageContext.request.contextPath}/admin";
-					document.form.submit();
-					break;
-				}
-			}
-		}
+		document.form.action = "${pageContext.request.contextPath}/login";
+		document.form.submit();
 	}
+	
 </script>
 </html>

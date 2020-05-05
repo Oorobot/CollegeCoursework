@@ -17,6 +17,7 @@ import com.elective.school.dao.AcademyDao;
 import com.elective.school.dao.AdminDao;
 import com.elective.school.dao.CourseDao;
 import com.elective.school.dao.CourseScheduleDao;
+import com.elective.school.dao.ElectiveDao;
 import com.elective.school.dao.StudentDao;
 import com.elective.school.dao.TeacherDao;
 import com.elective.school.dao.TermDao;
@@ -24,6 +25,9 @@ import com.elective.school.entity.Academy;
 import com.elective.school.entity.Admin;
 import com.elective.school.entity.Course;
 import com.elective.school.entity.CourseSchedule;
+import com.elective.school.entity.CourseScheduleUPK;
+import com.elective.school.entity.Elective;
+import com.elective.school.entity.ElectiveUPK;
 import com.elective.school.entity.Student;
 import com.elective.school.entity.Teacher;
 import com.elective.school.entity.Term;
@@ -48,13 +52,15 @@ public class AdminServiceImpl implements AdminService {
 	StudentDao studentDao;
 	@Autowired
 	CourseScheduleDao csDao;
+	@Autowired
+	ElectiveDao electiveDao;
 
 	@Override
-	public boolean login(String name, String password) {
+	public Admin login(String name, String password) {
 		Admin admin = adminDao.findByName(name);
 		if (admin != null && Method.md5Encoding(password).equals(admin.getPassword()))
-			return true;
-		return false;
+			return admin;
+		return null;
 	}
 
 	@Transactional(readOnly = true)
@@ -188,6 +194,7 @@ public class AdminServiceImpl implements AdminService {
 	}
 
 	@Override
+	@Transactional(readOnly = true)
 	public Map<String, Object> getCS(Integer termId) {
 		Map<String, Object> map = new HashMap<String, Object>();
 		List<CourseSchedule> cs = csDao.findByTermId(termId);
@@ -195,11 +202,12 @@ public class AdminServiceImpl implements AdminService {
 		Map<String, String> cName = new HashMap<String, String>();
 		for (CourseSchedule c : cs) {
 			tName.put(c.getUpk().getTno(), teacherDao.findById(c.getUpk().getTno()).get().getName());
-			cName.put(c.getUpk().getCno(), courseDao.findById(c.getUpk().getTno()).get().getName());
+			cName.put(c.getUpk().getCno(), courseDao.findById(c.getUpk().getCno()).get().getName());
 		}
 		map.put("CourseSchedules", cs);
-		map.put("tName", tName);
-		map.put("cName", cName);
+		map.put("teacherName", tName);
+		map.put("courseName", cName);
+		map.put("category", "cs");
 		return map;
 	}
 
@@ -249,7 +257,7 @@ public class AdminServiceImpl implements AdminService {
 		Map<String, Object> map = new HashMap<String, Object>();
 		if (!academy.getAno().matches(Constant.reg_academy_ano)) {
 			map.put("error", "学院号由两位数字组成");
-		} else if (academy.getName() == null) {
+		} else if (academy.getName() == null || academy.getName().length() == 0) {
 			map.put("error", "学院名不为空");
 		}
 		return map;
@@ -277,7 +285,7 @@ public class AdminServiceImpl implements AdminService {
 		if (course.length == 5) {
 			if (!course[0].matches(Constant.reg_course_cno)) {
 				map.put("error", "课程号由八位数字组成");
-			} else if (course[1] == null) {
+			} else if (course[1] == null || course[1].length() == 0) {
 				map.put("error", "课程名不能为空");
 			} else if (!course[2].matches(Constant.reg_num)) {
 				map.put("error", "学分应为数字");
@@ -310,13 +318,13 @@ public class AdminServiceImpl implements AdminService {
 		if (student.length == 7) {
 			if (!student[0].matches(Constant.reg_student_sno)) {
 				map.put("error", "学号为四位数字");
-			} else if (student[1] == null) {
+			} else if (student[1] == null || student[1].length() == 0) {
 				map.put("error", "姓名不能为空");
 			} else if (!student[3].matches(Constant.reg_date)) {
 				map.put("error", "出生日期格式为：YYYY-MM-DD");
-			} else if (student[4] == null) {
+			} else if (student[4] == null || student[4].length() == 0) {
 				map.put("error", "籍贯不能为空");
-			} else if (student[5] == null) {
+			} else if (student[5] == null || student[5].length() == 0) {
 				map.put("error", "联系电话不能为空");
 			}
 		}
@@ -331,6 +339,7 @@ public class AdminServiceImpl implements AdminService {
 			s.setPhone(student[5]);
 			s.setAno(student[6]);
 			map.put("student", s);
+			map.put("success", "操作成功");
 		}
 		return map;
 	}
@@ -343,6 +352,7 @@ public class AdminServiceImpl implements AdminService {
 		Example<Student> sno = Example.of(temp);
 		if (studentDao.exists(sno)) {
 			map.put("error", "学号已存在");
+			map.remove("success");
 		} else {
 			map.put("success", "添加成功");
 		}
@@ -355,20 +365,21 @@ public class AdminServiceImpl implements AdminService {
 		if (teacher.length == 7) {
 			if (!teacher[0].matches(Constant.reg_teacher_tno)) {
 				map.put("error", "工号为4位数字");
-			} else if (teacher[1] == null) {
+			} else if (teacher[1] == null || teacher[1].length() == 0) {
 				map.put("error", "姓名不能为空");
 			} else if (!teacher[3].matches(Constant.reg_date)) {
 				map.put("error", "出生日期格式为：YYYY-MM-DD");
-			} else if (teacher[4] == null) {
+			} else if (teacher[4] == null || teacher[4].length() == 0) {
 				map.put("error", "职称不能为空");
 			} else if (!teacher[5].matches(Constant.reg_double)) {
-				map.put("error", "请输入整数或浮点数");
+				map.put("error", "工资请输入整数或浮点数");
 			}
 		}
 		if (map.size() == 0) {
 			Teacher t = new Teacher(teacher[0], Method.md5Encoding("123456"), teacher[1], Boolean.valueOf(teacher[2]),
 					Date.valueOf(teacher[3]), teacher[4], Double.valueOf(teacher[5]), teacher[6]);
 			map.put("teacher", t);
+			map.put("success", "操作成功");
 		}
 		return map;
 	}
@@ -378,9 +389,39 @@ public class AdminServiceImpl implements AdminService {
 		Map<String, Object> map = new HashMap<String, Object>();
 		if (teacherDao.existsById(teacher.getTno())) {
 			map.put("error", "工号已存在");
+			map.remove("success");
 		} else {
 			map.put("success", "操作成功");
 		}
+		return map;
+	}
+
+	@Override
+	public CourseSchedule getCS(CourseScheduleUPK upk) {
+		return csDao.findById(upk).get();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Map<String, Object> getElective(CourseScheduleUPK upk) {
+		Map<String, Object> map = new HashMap<String, Object>();
+		Elective probe = new Elective();
+		ElectiveUPK eupk = new ElectiveUPK(null, upk.getTermId(), upk.getCno(), upk.getTno());
+		probe.setUpk(eupk);
+		Example<Elective> example = Example.of(probe);
+		map.put("numOfElectives", electiveDao.count(example));
+		List<Elective> electives = electiveDao.findByCourseScheduleUPK(upk.getTermId(), upk.getCno(), upk.getTno());
+		map.put("electives", electives);
+		map.put("teacherName", teacherDao.findById(upk.getTno()).get().getName());
+		map.put("courseName", courseDao.findById(upk.getCno()).get().getName());
+		map.put("term", termDao.findById(upk.getTermId()).get().getTerm());
+		Map<String, String> sName = new HashMap<String, String>();
+		for (Elective e : electives) {
+			sName.put(e.getUpk().getSno(), studentDao.findById(e.getUpk().getSno()).get().getName());
+		}
+		map.put("studentName", sName);
+		map.put("category", "elective");
+
 		return map;
 	}
 

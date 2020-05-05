@@ -15,8 +15,8 @@ public class CourseSchedule {
 	private Integer num;// 选课人数
 	@Column
 	private String classroom;// 上课地点
-	@Column(columnDefinition = "boolean default false")
-	private boolean status;//默认：0；1需修改，0无需修改。
+	@Column
+	private String memo;// 备注
 	@Column(columnDefinition = "int default 0")
 	private Integer weight;
 
@@ -52,12 +52,12 @@ public class CourseSchedule {
 		this.classroom = classroom;
 	}
 
-	public boolean isStatus() {
-		return status;
+	public String getMemo() {
+		return memo;
 	}
 
-	public void setStatus(boolean status) {
-		this.status = status;
+	public void setMemo(String memo) {
+		this.memo = memo;
 	}
 
 	public Integer getWeight() {
@@ -70,23 +70,23 @@ public class CourseSchedule {
 
 	public CourseSchedule() {
 		super();
-	}	
+	}
 
-	public CourseSchedule(CourseScheduleUPK upk, String time, Integer num, String classroom, boolean status,
+	public CourseSchedule(CourseScheduleUPK upk, String time, Integer num, String classroom, String memo,
 			Integer weight) {
 		super();
 		this.upk = upk;
 		this.time = time;
 		this.num = num;
 		this.classroom = classroom;
-		this.status = status;
+		this.memo = memo;
 		this.weight = weight;
 	}
 
 	@Override
 	public String toString() {
-		return "CourseSchedule [upk=" + upk + ", time=" + time + ", num=" + num + ", classroom=" + classroom
-				+ ", status=" + status + ", weight=" + weight + "]";
+		return "CourseSchedule [upk=" + upk + ", time=" + time + ", num=" + num + ", classroom=" + classroom + ", memo="
+				+ memo + ", weight=" + weight + "]";
 	}
 
 }

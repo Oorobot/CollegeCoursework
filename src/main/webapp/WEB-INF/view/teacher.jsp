@@ -6,7 +6,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>学院操作</title>
+<title>教师信息</title>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link
@@ -14,10 +14,22 @@
 	rel="stylesheet">
 </head>
 <body>
+	<!-- 导航栏  -->
+	<c:if
+		test="${fn:contains(operate,'add') or fn:contains(operate,'update') }">
+		<jsp:include page="admin-nav.jsp"></jsp:include>
+	</c:if>
+	<c:if test="${fn:contains(operate,'info') }">
+		<jsp:include page="teacher-nav.jsp"></jsp:include>
+	</c:if>
+	<!-- 表单  -->
 	<div class="container" style="margin-top: 10%">
 		<form class="form-horizontal"
-			action="${pageContext.request.contextPath}/admin/teacher"
+			action="${pageContext.request.contextPath}/${adr }"
 			method="post">
+			<div class=".col-xs-6 .col-md-4 col-md-offset-4" >
+				<label style="color: red; text-align: center;">错误：${error }</label>
+			</div>
 			<div class="form-group">
 				<label for="sno" class="col-sm-2 control-label">工号</label>
 				<div class="col-sm-10">
@@ -25,7 +37,7 @@
 						<input type="number" class="form-control" id="tno"
 							placeholder="由四位数字组成" value="${teacher.tno }" name="teacher">
 					</c:if>
-					<c:if test="${fn:contains(operate,'update') }">
+					<c:if test="${fn:contains(operate,'update') or fn:contains(operate,'info') }">
 						<input type="number" class="form-control" id="tno"
 							placeholder="由四位数字组成" value="${teacher.tno }" name="teacher"
 							readonly>
@@ -64,39 +76,36 @@
 				<label for="birthday" class="col-sm-2 control-label">出生日期</label>
 				<div class="col-sm-10">
 					<input type="date" class="form-control" id="birthday"
-						placeholder="格式：YYYY-MM-DD" value="${teacher.birthday }" name="teacher">
+						placeholder="格式：YYYY-MM-DD" value="${teacher.birthday }"
+						name="teacher">
 				</div>
 			</div>
 			<div class="form-group">
 				<label for="position" class="col-sm-2 control-label">职称</label>
 				<div class="col-sm-10">
 					<input type="text" class="form-control" id="position"
-						placeholder="例如：教师，副教授 ..." value="${teacher.position }" name="teacher">
+						placeholder="例如：教师，副教授 ..." value="${teacher.position }"
+						name="teacher">
 				</div>
 			</div>
 			<div class="form-group">
 				<label for="salary" class="col-sm-2 control-label">工资</label>
 				<div class="col-sm-10">
 					<input type="text" class="form-control" id="salary"
-						placeholder="例如：2000.00" value="${student.phone }" name="teacher">
+						placeholder="例如：2000.00" value="${teacher.salary }" name="teacher">
 				</div>
 			</div>
-			
-			
+
+
 			<div class="form-group">
 				<label for="hour" class="col-sm-2 control-label">学院</label>
 				<div class="col-sm-10">
 					<select class="form-control" name="teacher">
 						<c:forEach items="${academies }" var="a">
-							<c:if test="${!empty teacher.tno }">
-								<c:if test="${a.ano==teacher.ano }">
-									<option value="${a.ano }" selected="selected">${a.name }</option>
-								</c:if>
-								<c:if test="${a.ano!=teacher.ano }">
-									<option value="${a.ano }">${a.name }</option>
-								</c:if>
+							<c:if test="${!empty teacher.tno and a.ano==teacher.ano }">
+								<option value="${a.ano }" selected="selected">${a.name }</option>
 							</c:if>
-							<c:if test="${empty teacher.tno }">
+							<c:if test="${empty teacher.tno or a.ano!=teacher.ano }">
 								<option value="${a.ano }">${a.name }</option>
 							</c:if>
 						</c:forEach>

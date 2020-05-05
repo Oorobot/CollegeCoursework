@@ -16,29 +16,8 @@
 </head>
 <body>
 	<!-- 导航栏  -->
-	<jsp:include page="admin-nav.jsp"></jsp:include>
+	<jsp:include page="student-nav.jsp"></jsp:include>
 	<!-- 主体内容  -->
-	<c:if test="${fn:contains(category,'term') }">
-		<jsp:include page="term.jsp"></jsp:include>
-	</c:if>
-	<c:if test="${fn:contains(category,'academy') }">
-		<jsp:include page="academies.jsp"></jsp:include>
-	</c:if>
-	<c:if test="${fn:contains(category,'course') }">
-		<jsp:include page="courses.jsp"></jsp:include>
-	</c:if>
-	<c:if test="${fn:contains(category,'student') }">
-		<jsp:include page="students.jsp"></jsp:include>
-	</c:if>
-	<c:if test="${fn:contains(category,'teacher') }">
-		<jsp:include page="teachers.jsp"></jsp:include>
-	</c:if>
-	<c:if test="${fn:contains(category,'cs') }">
-		<jsp:include page="cses.jsp"></jsp:include>
-	</c:if>
-	<c:if test="${fn:contains(category,'elective') }">
-		<jsp:include page="electives.jsp"></jsp:include>
-	</c:if>
 </body>
 <c:if test="${empty category}">
 <script type="text/javascript"

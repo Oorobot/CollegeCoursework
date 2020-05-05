@@ -14,6 +14,9 @@
 	rel="stylesheet">
 </head>
 <body>
+	<!-- 导航栏  -->
+	<jsp:include page="admin-nav.jsp"></jsp:include>
+	<!-- 表单  -->
 	<div class="container" style="margin-top: 10%">
 		<form class="form-horizontal"
 			action="${pageContext.request.contextPath}/admin/student"
@@ -64,14 +67,16 @@
 				<label for="birthday" class="col-sm-2 control-label">出生日期</label>
 				<div class="col-sm-10">
 					<input type="date" class="form-control" id="birthday"
-						placeholder="格式：YYYY-MM-DD" value="${student.birthday }" name="student">
+						placeholder="格式：YYYY-MM-DD" value="${student.birthday }"
+						name="student">
 				</div>
 			</div>
 			<div class="form-group">
 				<label for="hometown" class="col-sm-2 control-label">籍贯</label>
 				<div class="col-sm-10">
 					<input type="text" class="form-control" id="hometown"
-						placeholder="上海、北京或广东等" value="${student.hometown }" name="student">
+						placeholder="上海、北京或广东等" value="${student.hometown }"
+						name="student">
 				</div>
 			</div>
 			<div class="form-group">
@@ -81,22 +86,17 @@
 						placeholder="电话号码" value="${student.phone }" name="student">
 				</div>
 			</div>
-			
-			
+
+
 			<div class="form-group">
 				<label for="hour" class="col-sm-2 control-label">学院</label>
 				<div class="col-sm-10">
 					<select class="form-control" name="student">
 						<c:forEach items="${academies }" var="a">
-							<c:if test="${!empty student.sno }">
-								<c:if test="${a.ano==student.ano }">
-									<option value="${a.ano }" selected="selected">${a.name }</option>
-								</c:if>
-								<c:if test="${a.ano!=student.ano }">
-									<option value="${a.ano }">${a.name }</option>
-								</c:if>
+							<c:if test="${!empty student.sno and a.ano==student.ano }">
+								<option value="${a.ano }" selected="selected">${a.name }</option>
 							</c:if>
-							<c:if test="${empty student.sno }">
+							<c:if test="${empty student.sno or a.ano!=student.ano }">
 								<option value="${a.ano }">${a.name }</option>
 							</c:if>
 						</c:forEach>

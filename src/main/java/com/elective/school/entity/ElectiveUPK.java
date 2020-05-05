@@ -30,11 +30,11 @@ public class ElectiveUPK implements Serializable {
 		this.sno = sno;
 	}
 
-	public Integer getTerm() {
+	public Integer getTermId() {
 		return termId;
 	}
 
-	public void setTerm(Integer termId) {
+	public void setTermId(Integer termId) {
 		this.termId = termId;
 	}
 

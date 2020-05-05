@@ -4,8 +4,10 @@ import java.util.List;
 import java.util.Map;
 
 import com.elective.school.entity.Academy;
+import com.elective.school.entity.Admin;
 import com.elective.school.entity.Course;
 import com.elective.school.entity.CourseSchedule;
+import com.elective.school.entity.CourseScheduleUPK;
 import com.elective.school.entity.Student;
 import com.elective.school.entity.Teacher;
 import com.elective.school.entity.Term;
@@ -13,7 +15,7 @@ import com.elective.school.entity.Term;
 public interface AdminService {
 
 	// 学期管理
-	public boolean login(String name, String password);
+	public Admin login(String name, String password);
 
 	public Map<String, Object> getTerms();
 
@@ -80,5 +82,9 @@ public interface AdminService {
 	// 开课信息
 	public Map<String, Object> getCS(Integer termId);
 
+	public CourseSchedule getCS(CourseScheduleUPK upk);
+
 	public void save(CourseSchedule cs);
+	
+	public Map<String, Object> getElective(CourseScheduleUPK upk);
 }

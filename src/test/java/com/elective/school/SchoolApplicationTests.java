@@ -9,6 +9,7 @@ import com.elective.school.dao.AcademyDao;
 import com.elective.school.dao.AdminDao;
 import com.elective.school.dao.CourseScheduleDao;
 import com.elective.school.dao.StudentDao;
+import com.elective.school.dao.TeacherDao;
 import com.elective.school.dao.TermDao;
 import com.elective.school.entity.Admin;
 import com.elective.school.entity.Term;
@@ -27,6 +28,8 @@ class SchoolApplicationTests {
 	StudentDao studentDao;
 	@Autowired
 	TermDao termDao;
+	@Autowired
+	TeacherDao teacherDao;
 
 	@Test
 	void contextLoads() {
@@ -56,4 +59,8 @@ class SchoolApplicationTests {
 		System.out.println(Double.valueOf("你餓了吧"));
 	}
 
+	@Test
+	void testTeacherDao() {
+		System.out.print(teacherDao.findByName("马小红"));
+	}
 }

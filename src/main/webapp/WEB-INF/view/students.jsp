@@ -50,6 +50,10 @@
 							href="${pageContext.request.contextPath}/admin/student/${s.sno }">
 								<button type="button" class="btn btn-warning">初始化密码</button>
 						</a></td>
+						<td><a
+							href="${pageContext.request.contextPath}/admin/student/update/${s.sno }">
+								<button type="button" class="btn btn-info">修改</button>
+						</a></td>
 					</tr>
 				</c:forEach>
 			</tbody>

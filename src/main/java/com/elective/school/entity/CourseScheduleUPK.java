@@ -19,11 +19,11 @@ public class CourseScheduleUPK implements Serializable {
 	@Column(length = 10, nullable = false)
 	private String tno;
 
-	public Integer getTerm() {
+	public Integer getTermId() {
 		return termId;
 	}
 
-	public void Integer(Integer termId) {
+	public void setTermId(Integer termId) {
 		this.termId = termId;
 	}
 

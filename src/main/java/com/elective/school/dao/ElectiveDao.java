@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import com.elective.school.entity.Elective;
 import com.elective.school.entity.ElectiveUPK;
 
-public interface ElectiveDao extends JpaRepository<Elective, ElectiveUPK>{
+public interface ElectiveDao extends JpaRepository<Elective, ElectiveUPK> {
 
 	@Query(value = "Select e from Elective e where e.upk.sno = ?1")
 	public List<Elective> findBySno(String Sno);
@@ -21,4 +21,7 @@ public interface ElectiveDao extends JpaRepository<Elective, ElectiveUPK>{
 
 	@Query(value = "Select e from Elective e where e.upk.termId = ?1")
 	public List<Elective> findByTermId(Integer termId);
+
+	@Query(value = "Select e from Elective e where e.upk.termId = ?1 and e.upk.cno = ?2 and e.upk.tno = ?3")
+	public List<Elective> findByCourseScheduleUPK(Integer termId, String Cno, String Tno);
 }

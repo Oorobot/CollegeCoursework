@@ -8,7 +8,7 @@
 >
 > Course（课程表）：cno（学院号），credit，hour，name，ano
 >
-> CourseSchedule（每学期可选择的课）：cno，tno，termId，num，time，classroom
+> CourseSchedule（每学期可选择的课）：cno，tno，termId，num，time，classroom，memo,weight
 >
 > Elective（学生选课后得到的表）：cno，tno，termId，sno，usualScore，examScore，totalScore
 >
