@@ -41,21 +41,28 @@ public class TeacherController {
 	public String info(Map<String, Object> map) {
 		map.putAll(adminService.getAcademies());
 		map.put("operate", "info");
-		map.put("adr", "teacher");
+		map.put("adr", "teacher/info/save");
 		return "teacher";
 	}
 
-	@PostMapping("")
-	public String updateInfo(Map<String, Object> map, @RequestParam(name = "teacher") String[] teacher) {
+	@PostMapping("/info/save")
+	public String updateInfo(Map<String, Object> map, @RequestParam(name = "teacher") String[] teacher,
+			HttpSession session) {
+		Teacher st = (Teacher) session.getAttribute("teacher");
 		map.putAll(adminService.validateTeacher(teacher));
 		if (map.get("error") != null) {
 			map.putAll(adminService.getAcademies());
 			map.put("operate", "info");
-			map.put("adr", "teacher");
+			map.put("adr", "teacher/info/save");
 			return "teacher";
 		}
 		Teacher t = (Teacher) map.get("teacher");
+		t.setPassword(st.getPassword());
 		adminService.save(t);
-		return "teacher-home";
+		map.put("teacher", t);
+		map.putAll(adminService.getAcademies());
+		map.put("operate", "info");
+		map.put("adr", "teacher/info/save");
+		return "teacher";
 	}
 }

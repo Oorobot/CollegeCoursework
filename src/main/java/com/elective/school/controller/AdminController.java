@@ -211,6 +211,8 @@ public class AdminController {
 					adminService.save(s);
 				}
 			} else if (operate.equals("update")) {
+				Student ss = adminService.getStudent(s.getSno());
+				s.setPassword(ss.getPassword());
 				adminService.save(s);
 			}
 		}
@@ -252,6 +254,7 @@ public class AdminController {
 		map.putAll(adminService.getAcademies());
 		map.put("operate", "update");
 		map.put("teacher", adminService.getTeacher(tno));
+		map.put("adr", "admin/teacher");
 		return "teacher";
 	}
 
@@ -262,12 +265,13 @@ public class AdminController {
 		if (map.get("error") == null) {
 			Teacher t = (Teacher) map.get("teacher");
 			if (operate.equals("add")) {
-				// System.out.println(t);
 				map.putAll(adminService.exist(t));
 				if (map.get("success") != null) {
 					adminService.save(t);
 				}
 			} else if (operate.equals("update")) {
+				Teacher st = adminService.getTeacher(t.getTno());
+				t.setPassword(st.getPassword());
 				adminService.save(t);
 			}
 		}

@@ -15,9 +15,8 @@ import com.elective.school.entity.Teacher;
 public class LoginInterceptor implements HandlerInterceptor {
 	@Override
 	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
-//	        System.out.println("执行了TestInterceptor的preHandle方法");
 		try {
-			// 统一拦截（查询当前session是否存在user）(这里user会在每次登陆成功后，写入session)
+			// 统一拦截
 			Student student = (Student) request.getSession().getAttribute("student");
 			Teacher teacher = (Teacher) request.getSession().getAttribute("teacher");
 			Admin admin = (Admin) request.getSession().getAttribute("admin");
@@ -28,8 +27,7 @@ public class LoginInterceptor implements HandlerInterceptor {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		return false;// 如果设置为false时，被请求时，拦截器执行到此处将不会继续操作
-						// 如果设置为true时，请求将会继续执行后面的操作
+		return false;
 	}
 
 	/**

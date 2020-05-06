@@ -22,13 +22,20 @@
 				<a class="navbar-brand"
 					href="${pageContext.request.contextPath}/teacher">教师</a>
 			</div>
-
 			<!-- 导航栏主题 -->
 			<div class="collapse navbar-collapse"
 				id="bs-example-navbar-collapse-1">
 				<ul class="nav navbar-nav">
 					<li><a href="${pageContext.request.contextPath}/teacher/info">个人信息</a></li>
-					<li><a href="${pageContext.request.contextPath}/teacher/open">开设课程</a></li>
+					<li class="dropdown"><a href="#" class="dropdown-toggle"
+						data-toggle="dropdown" role="button" aria-haspopup="true"
+						aria-expanded="false">课程开设 <span class="caret"></span></a>
+						<ul class="dropdown-menu">
+							<li><a href="${pageContext.request.contextPath}/admin/open">开设课程</a></li>
+							<li><a
+								href="${pageContext.request.contextPath}/admin/opened">已开设课程</a></li>
+						</ul></li>
+
 					<li><a href="${pageContext.request.contextPath}/teacher/score">登记分数</a></li>
 				</ul>
 				<ul class="nav navbar-nav navbar-right">
