@@ -26,8 +26,11 @@
 				</select>
 			</div>
 			<button type="submit" class="btn btn-default">查询</button>
-			<c:if test="${!empty term and term.status != 0 }"><label>开课阶段已结束</label></c:if>
-			<c:if test="${!empty term and term.status == 0 }"><label style="color: blue;">开课阶段中</label>
+			<c:if test="${!empty term and term.status != 0 }">
+				<label>开课阶段已结束</label>
+			</c:if>
+			<c:if test="${!empty term and term.status == 0 }">
+				<label style="color: blue;">开课阶段中</label>
 				<a href="${pageContext.request.contextPath}/admin/cs/${term.id}">
 					<button type="button" class="btn btn-success">开始选课阶段</button>
 				</a>
@@ -63,16 +66,16 @@
 							<td>${courseName[cs.upk.cno] }</td>
 							<td>${cs.upk.tno }</td>
 							<td>${teacherName[cs.upk.tno] }</td>
-							<td>${cs.num }</td>
+							<td style="color: blue;">${cs.number }/${cs.num }</td>
 							<td>${cs.time }</td>
 							<td>${cs.classroom }</td>
-							<td>${cs.weight }</td>
+							<td>${cs.weight }%</td>
 							<td style="color: red;">${cs.memo }</td>
 							<c:if test="${term.status == 0 }">
 								<td>
 									<button type="button" class="btn btn-primary" id="memoButton"
 										data-toggle="modal" data-target="#csModal"
-										value="/${cs.upk.termId }/${cs.upk.tno }/${cs.upk.cno }">备注</button>
+										data-whatever="/${cs.upk.termId }/${cs.upk.tno }/${cs.upk.cno }">备注</button>
 								</td>
 							</c:if>
 							<td><a
@@ -85,7 +88,6 @@
 			</table>
 		</c:if>
 	</div>
-
 	<!-- modal -->
 	<div class="modal fade" id="csModal" tabindex="-1" role="dialog"
 		aria-labelledby="csModalLabel">
@@ -104,15 +106,19 @@
 							<label for="recipient-name" class="control-label">备注:</label>
 							<textarea class="form-control" rows="3" name="memo"></textarea>
 						</div>
+						<div class="form-group">
+							<input type="hidden" class="form-control" id="adr">
+						</div>
 					</form>
 				</div>
 				<div class="modal-footer" style="text-align: center;">
 					<button type="button" class="btn btn-default" data-dismiss="modal">关闭</button>
-					<button type="button" class="btn btn-primary" onclick="memo()">提交</button>
+					<button type="button" class="btn btn-info" onclick="memo()">提交</button>
 				</div>
 			</div>
 		</div>
 	</div>
+
 
 
 
@@ -122,16 +128,21 @@
 <script
 	src="${pageContext.request.contextPath}/bootstrap/js/bootstrap.min.js"></script>
 <script type="text/javascript">
+	$('#csModal').on('show.bs.modal', function (event) {
+		  var button = $(event.relatedTarget)
+		  var recipient = button.data('whatever')
+		  var modal = $(this)
+		  var form = modal.find('.modal-body form input')
+		  modal.find('.modal-body form input').val(recipient)
+		})
 	
 	function memo() {
 		var form = document.getElementById('memoForm');
-		var button = document.getElementById('memoButton');
+		var button = document.getElementById('adr');
+		console.log(button.value);
 		form.action = "${pageContext.request.contextPath}/admin/cs"
 				+ button.value;
 		form.submit();
-		$("#termModal").on("hidden.bs.modal", function() {
-			$(this).removeData("bs.modal");
-		});
 	}
 </script>
 

@@ -12,14 +12,19 @@
 	<div class="container">
 
 		<div>
-			<a href="${pageContext.request.contextPath}/admin/course/add">
-				<button type="button" class="btn btn-success">添加</button>
-			</a>
+			<c:if test="${fn:contains(category,'open') and empty terms }">
+				<label style="color: blue;">开课阶段未到！！！</label>
+			</c:if>
+			<c:if test="${fn:contains(category,'course') }">
+				<a href="${pageContext.request.contextPath}/admin/course/add">
+					<button type="button" class="btn btn-success">添加</button>
+				</a>
+			</c:if>
 			<c:if test="${!empty success }">
 				<label style="color: green;">${success }</label>
 			</c:if>
 			<c:if test="${!empty error }">
-				<label style="color: red;">请重新添加：${error }</label>
+				<label style="color: red;">错误：${error }</label>
 			</c:if>
 		</div>
 
@@ -42,10 +47,24 @@
 						<td>${c.credit }</td>
 						<td>${c.hour }</td>
 						<td>${academyName[c.ano] }</td>
-						<td><a
-							href="${pageContext.request.contextPath}/admin/course/${c.cno }">
-								<button type="button" class="btn btn-info">修改</button>
-						</a></td>
+						<c:if test="${fn:contains(category,'course') }">
+							<td><a
+								href="${pageContext.request.contextPath}/admin/course/${c.cno }">
+									<button type="button" class="btn btn-info">修改</button>
+							</a></td>
+						</c:if>
+						<c:if test="${fn:contains(category,'open') and !empty terms }">
+							<td><a
+								href="${pageContext.request.contextPath}/teacher/open/${c.cno }">
+									<button type="button" class="btn btn-info">开课</button>
+							</a></td>
+						</c:if>
+						<c:if test="${fn:contains(category,'open') and empty terms }">
+							<td><a
+								href="${pageContext.request.contextPath}/teacher/open/${c.cno }">
+									<button type="button" class="btn btn-info" disabled>开课</button>
+							</a></td>
+						</c:if>
 					</tr>
 				</c:forEach>
 			</tbody>

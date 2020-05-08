@@ -24,7 +24,17 @@
 			</h1>
 		</div>
 	</c:if>
-	
+
+	<c:if test="${fn:endsWith(category,'open') }">
+		<jsp:include page="courses.jsp"></jsp:include>
+	</c:if>
+	<c:if test="${fn:endsWith(category,'opened') }">
+		<jsp:include page="teacher-cses.jsp"></jsp:include>
+	</c:if>
+	<c:if test="${fn:endsWith(category,'elective') }">
+		<jsp:include page="electives.jsp"></jsp:include>
+	</c:if>
+
 </body>
 <c:if test="${empty category}">
 	<script type="text/javascript"

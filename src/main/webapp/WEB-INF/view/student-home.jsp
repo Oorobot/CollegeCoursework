@@ -18,6 +18,13 @@
 	<!-- 导航栏  -->
 	<jsp:include page="student-nav.jsp"></jsp:include>
 	<!-- 主体内容  -->
+	<c:if test="${empty category }">
+		<div class="container">
+			<h1>
+				欢迎登录！！！<small>学生页面</small>
+			</h1>
+		</div>
+	</c:if>
 </body>
 <c:if test="${empty category}">
 <script type="text/javascript"

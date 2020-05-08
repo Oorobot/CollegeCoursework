@@ -11,14 +11,16 @@ public class CourseSchedule {
 	private CourseScheduleUPK upk;
 	@Column
 	private String time;// 上课时间
+	@Column(columnDefinition = "int default 0")
+	private Integer number;// 选课人数
 	@Column(columnDefinition = "int default 20")
-	private Integer num;// 选课人数
+	private Integer num;// 限制人数
 	@Column
 	private String classroom;// 上课地点
 	@Column
 	private String memo;// 备注
 	@Column(columnDefinition = "int default 0")
-	private Integer weight;
+	private Integer weight;//平时成绩所占权重
 
 	public CourseScheduleUPK getUpk() {
 		return upk;
@@ -34,6 +36,14 @@ public class CourseSchedule {
 
 	public void setTime(String time) {
 		this.time = time;
+	}
+	
+	public Integer getNumber() {
+		return number;
+	}
+
+	public void setNumber(Integer number) {
+		this.number = number;
 	}
 
 	public Integer getNum() {
@@ -83,10 +93,22 @@ public class CourseSchedule {
 		this.weight = weight;
 	}
 
+	public CourseSchedule(CourseScheduleUPK upk, String time, Integer number, Integer num, String classroom,
+			String memo, Integer weight) {
+		super();
+		this.upk = upk;
+		this.time = time;
+		this.number = number;
+		this.num = num;
+		this.classroom = classroom;
+		this.memo = memo;
+		this.weight = weight;
+	}
+
 	@Override
 	public String toString() {
-		return "CourseSchedule [upk=" + upk + ", time=" + time + ", num=" + num + ", classroom=" + classroom + ", memo="
-				+ memo + ", weight=" + weight + "]";
+		return "CourseSchedule [upk=" + upk + ", time=" + time + ", number=" + number + ", num=" + num + ", classroom="
+				+ classroom + ", memo=" + memo + ", weight=" + weight + "]";
 	}
 
 }

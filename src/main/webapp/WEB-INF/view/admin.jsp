@@ -17,6 +17,13 @@
 <body>
 	<!-- 导航栏  -->
 	<jsp:include page="admin-nav.jsp"></jsp:include>
+	<c:if test="${empty category }">
+		<div class="container">
+			<h1>
+				欢迎登录！！！<small>管理员页面</small>
+			</h1>
+		</div>
+	</c:if>
 	<!-- 主体内容  -->
 	<c:if test="${fn:contains(category,'term') }">
 		<jsp:include page="term.jsp"></jsp:include>

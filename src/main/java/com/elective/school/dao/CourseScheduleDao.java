@@ -19,4 +19,6 @@ public interface CourseScheduleDao extends JpaRepository<CourseSchedule, CourseS
 	@Query(value = "Select cs From CourseSchedule cs Where cs.upk.termId = ?1")
 	public List<CourseSchedule> findByTermId(Integer termId);
 	
+	@Query(value = "Select cs From CourseSchedule cs Where cs.upk.termId = ?1 and cs.upk.tno = ?2")
+	public List<CourseSchedule> findByTermIdAndTno(Integer termId,String tno);
 }
