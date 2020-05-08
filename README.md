@@ -1,7 +1,10 @@
 ## A ROOKIE WANT TO BE STRONGER：
 ### LinkList与简单的学生管理系统
-a practice
+C/C++课程作业
 ### DataStructure
-学习资料
-### 初学OpenGL
-天空盒和模型加载结合使用
+数据结构课程中的学习资料
+
+### CompilingPrinciple
+
+编译原理实验作业
+
