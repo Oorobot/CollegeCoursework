@@ -63,4 +63,9 @@ class SchoolApplicationTests {
 	void testTeacherDao() {
 		System.out.print(teacherDao.findByName("马小红"));
 	}
+	
+	@Test
+	void testDao() {
+		System.out.print(courseScheduleDao.findByTermIdLikeTnoAndCno(1, "", "", "", ""));
+	}
 }

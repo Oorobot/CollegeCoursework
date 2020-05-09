@@ -187,6 +187,7 @@ public class AdminController {
 		map.put("student", new Student());
 		map.putAll(adminService.getAcademies());
 		map.put("operate", "add");
+		map.put("adr", "admin/student");
 		return "student";
 	}
 
@@ -195,6 +196,7 @@ public class AdminController {
 		map.put("student", adminService.getStudent(sno));
 		map.putAll(adminService.getAcademies());
 		map.put("operate", "update");
+		map.put("adr", "admin/student");
 		return "student";
 	}
 

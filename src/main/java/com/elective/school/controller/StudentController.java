@@ -33,4 +33,36 @@ public class StudentController {
 		map.put("student", student);
 		return "student-home";
 	}
+
+	@GetMapping("info")
+	public String info(Map<String, Object> map) {
+		map.putAll(adminService.getAcademies());
+		map.put("operate", "info");
+		map.put("adr", "student/info/save");
+		return "student";
+	}
+
+	@PostMapping("/info/save")
+	public String infoSave(Map<String, Object> map, @RequestParam(name = "student") String[] student,
+			@RequestParam(name = "operate") String operate, HttpSession session) {
+		Student s = (Student) session.getAttribute("student");
+		map.putAll(adminService.validateStudent(student));
+		map.putAll(adminService.getAcademies());
+		map.put("operate", "info");
+		map.put("adr", "student/info/save");
+		if (map.get("error") != null) {
+			return "student";
+		}
+		Student st = (Student) map.get("student");
+		st.setPassword(s.getPassword());
+		adminService.save(st);
+		map.put("student", st);
+		return "student";
+	}
+
+	@GetMapping("/select")
+	public String select(Map<String, Object> map) {
+
+		return "student-home";
+	}
 }

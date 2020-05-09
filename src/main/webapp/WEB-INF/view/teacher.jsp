@@ -23,15 +23,13 @@
 		<jsp:include page="teacher-nav.jsp"></jsp:include>
 	</c:if>
 	<!-- 表单  -->
-	<div class="container" style="margin-top: 10%">
+	<div class="container" style="margin-top: 5%">
 		<form class="form-horizontal"
 			action="${pageContext.request.contextPath}/${adr }"
 			method="post">
 			<!-- 显示修改回馈信息 -->
-			<div style="text-align: center;">
+			<div  style="text-align: center;">
 				<label style="color: red;">${error }</label>
-			</div>
-			<div class=".col-xs-6 .col-md-4 col-md-offset-4" style="text-align: center;">
 				<label style="color: green;">${success }</label>
 			</div>
 			<!-- 工号  -->

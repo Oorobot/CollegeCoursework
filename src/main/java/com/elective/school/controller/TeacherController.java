@@ -53,19 +53,16 @@ public class TeacherController {
 			HttpSession session) {
 		Teacher st = (Teacher) session.getAttribute("teacher");
 		map.putAll(adminService.validateTeacher(teacher));
+		map.putAll(adminService.getAcademies());
+		map.put("operate", "info");
+		map.put("adr", "teacher/info/save");
 		if (map.get("error") != null) {
-			map.putAll(adminService.getAcademies());
-			map.put("operate", "info");
-			map.put("adr", "teacher/info/save");
 			return "teacher";
 		}
 		Teacher t = (Teacher) map.get("teacher");
 		t.setPassword(st.getPassword());
 		adminService.save(t);
 		map.put("teacher", t);
-		map.putAll(adminService.getAcademies());
-		map.put("operate", "info");
-		map.put("adr", "teacher/info/save");
 		return "teacher";
 	}
 

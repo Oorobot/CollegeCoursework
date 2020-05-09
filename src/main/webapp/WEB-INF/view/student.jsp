@@ -15,12 +15,24 @@
 </head>
 <body>
 	<!-- 导航栏  -->
-	<jsp:include page="admin-nav.jsp"></jsp:include>
+	<c:if
+		test="${fn:contains(operate,'add') or fn:contains(operate,'update') }">
+		<jsp:include page="admin-nav.jsp"></jsp:include>
+	</c:if>
+	<c:if test="${fn:endsWith(operate,'info') }">
+		<jsp:include page="student-nav.jsp"></jsp:include>
+	</c:if>
 	<!-- 表单  -->
-	<div class="container" style="margin-top: 10%">
+	<div class="container" style="margin-top: 5%">
 		<form class="form-horizontal"
-			action="${pageContext.request.contextPath}/admin/student"
+			action="${pageContext.request.contextPath}/${adr }"
 			method="post">
+			<!-- 显示修改回馈信息 -->
+			<div style="text-align: center;">
+				<label style="color: red;">${error }</label>
+				<label style="color: green;">${success }</label>
+			</div>
+			<!-- 学号  -->
 			<div class="form-group">
 				<label for="sno" class="col-sm-2 control-label">学号</label>
 				<div class="col-sm-10">
@@ -28,7 +40,7 @@
 						<input type="number" class="form-control" id="sno"
 							placeholder="由四位数字组成" value="${student.sno }" name="student">
 					</c:if>
-					<c:if test="${fn:contains(operate,'update') }">
+					<c:if test="${fn:contains(operate,'update') or fn:contains(operate,'info') }">
 						<input type="number" class="form-control" id="sno"
 							placeholder="由四位数字组成" value="${student.sno }" name="student"
 							readonly="readonly">
@@ -87,22 +99,39 @@
 				</div>
 			</div>
 
-
-			<div class="form-group">
-				<label for="hour" class="col-sm-2 control-label">学院</label>
-				<div class="col-sm-10">
-					<select class="form-control" name="student">
-						<c:forEach items="${academies }" var="a">
-							<c:if test="${!empty student.sno and a.ano==student.ano }">
-								<option value="${a.ano }" selected="selected">${a.name }</option>
-							</c:if>
-							<c:if test="${empty student.sno or a.ano!=student.ano }">
-								<option value="${a.ano }">${a.name }</option>
-							</c:if>
-						</c:forEach>
-					</select>
+				<div class="form-group">
+					<label for="hour" class="col-sm-2 control-label">学院</label>
+					<div class="col-sm-10">
+					<!-- 管理员可更新  -->
+					<c:if
+						test="${fn:contains(operate,'add') or fn:contains(operate,'update') }">
+						<select class="form-control" name="student">
+							<c:forEach items="${academies }" var="a">
+								<c:if test="${!empty student.sno and a.ano==student.ano }">
+									<option value="${a.ano }" selected="selected">${a.name }</option>
+								</c:if>
+								<c:if test="${empty student.sno or a.ano!=student.ano }">
+									<option value="${a.ano }">${a.name }</option>
+								</c:if>
+							</c:forEach>
+						</select>
+					</c:if>
+					<!-- 学生端警用可更新  -->
+					<c:if test="${fn:contains(operate,'info') }">
+						<select class="form-control" name="student" disabled>
+							<c:forEach items="${academies }" var="a">
+								<c:if test="${!empty student.sno and a.ano==student.ano }">
+									<option value="${a.ano }" selected="selected">${a.name }</option>
+								</c:if>
+								<c:if test="${empty student.sno or a.ano!=student.ano }">
+									<option value="${a.ano }">${a.name }</option>
+								</c:if>
+							</c:forEach>
+						</select>
+						<input type="hidden" name="student" value="${student.ano }">
+					</c:if>
 				</div>
-			</div>
+				</div>
 			<div class="form-group">
 				<div class="col-sm-offset-2 col-sm-10">
 					<button type="submit" class="btn btn-default" name="operate"

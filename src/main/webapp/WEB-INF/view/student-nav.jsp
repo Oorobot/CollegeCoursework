@@ -29,6 +29,7 @@
 					<li><a href="${pageContext.request.contextPath}/student/info">个人信息</a></li>
 					<li><a href="${pageContext.request.contextPath}/student/select">选课</a></li>
 					<li><a href="${pageContext.request.contextPath}/student/drop">退课</a></li>
+					<li><a href="${pageContext.request.contextPath}/student/score">查看成绩</a></li>
 				</ul>
 				<ul class="nav navbar-nav navbar-right">
 					<li><a href="${pageContext.request.contextPath}/logout">退出</a></li>
