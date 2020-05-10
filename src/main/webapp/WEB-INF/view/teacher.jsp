@@ -25,12 +25,11 @@
 	<!-- 表单  -->
 	<div class="container" style="margin-top: 5%">
 		<form class="form-horizontal"
-			action="${pageContext.request.contextPath}/${adr }"
-			method="post">
+			action="${pageContext.request.contextPath}/${adr }" method="post">
 			<!-- 显示修改回馈信息 -->
-			<div  style="text-align: center;">
-				<label style="color: red;">${error }</label>
-				<label style="color: green;">${success }</label>
+			<div style="text-align: center;">
+				<label style="color: red;">${error }</label> <label
+					style="color: green;">${success }</label>
 			</div>
 			<!-- 工号  -->
 			<div class="form-group">
@@ -40,7 +39,8 @@
 						<input type="number" class="form-control" id="tno"
 							placeholder="由四位数字组成" value="${teacher.tno }" name="teacher">
 					</c:if>
-					<c:if test="${fn:contains(operate,'update') or fn:contains(operate,'info') }">
+					<c:if
+						test="${fn:contains(operate,'update') or fn:contains(operate,'info') }">
 						<input type="number" class="form-control" id="tno"
 							placeholder="由四位数字组成" value="${teacher.tno }" name="teacher"
 							readonly>
@@ -116,8 +116,7 @@
 									<option value="${a.ano }">${a.name }</option>
 								</c:if>
 							</c:forEach>
-						</select>
-						<input type="hidden" name="teacher" value="${teacher.ano }">
+						</select> <input type="hidden" name="teacher" value="${teacher.ano }">
 					</div>
 				</div>
 			</c:if>
@@ -164,8 +163,8 @@
 				</div>
 			</div>
 		</form>
-
 	</div>
+	
 </body>
 
 <script type="text/javascript"

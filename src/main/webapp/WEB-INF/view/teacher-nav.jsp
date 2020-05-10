@@ -31,6 +31,7 @@
 					<li><a href="${pageContext.request.contextPath}/teacher/opened">已开设课程</a></li>
 				</ul>
 				<ul class="nav navbar-nav navbar-right">
+					<li><a href="${pageContext.request.contextPath}/teacher/password">修改密码</a></li>
 					<li><a href="${pageContext.request.contextPath}/logout">退出</a></li>
 				</ul>
 			</div>

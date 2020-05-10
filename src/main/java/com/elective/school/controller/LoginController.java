@@ -76,11 +76,10 @@ public class LoginController {
 		return "login";
 	}
 
-	@RequestMapping("/logout")
+	@GetMapping("/logout")
 	public String logout(HttpSession session, SessionStatus sessionStatus) {
 		session.invalidate();
 		sessionStatus.setComplete();
 		return "redirect:/login";
 	}
-
 }

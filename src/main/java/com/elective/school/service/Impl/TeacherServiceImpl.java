@@ -1,5 +1,6 @@
 package com.elective.school.service.Impl;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -11,6 +12,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.domain.Sort.Order;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.elective.school.dao.AcademyDao;
 import com.elective.school.dao.CourseDao;
@@ -22,6 +24,8 @@ import com.elective.school.dao.TermDao;
 import com.elective.school.entity.Academy;
 import com.elective.school.entity.CourseSchedule;
 import com.elective.school.entity.CourseScheduleUPK;
+import com.elective.school.entity.Elective;
+import com.elective.school.entity.ElectiveUPK;
 import com.elective.school.entity.Teacher;
 import com.elective.school.entity.Term;
 import com.elective.school.service.TeacherService;
@@ -132,6 +136,69 @@ public class TeacherServiceImpl implements TeacherService {
 		map.put("courseName", cName);
 		map.put("category", "opened");
 		return map;
+	}
+
+	@Override
+	@Transactional
+	public Map<String, Object> deleteCS(CourseScheduleUPK upk) {
+		Map<String, Object> map = new HashMap<String, Object>();
+		csDao.deleteById(upk);
+		map.put("success", "成功删除");
+		return map;
+	}
+
+	@Override
+	public Map<String, Object> score(CourseScheduleUPK upk) {
+		Map<String, Object> map = new HashMap<String, Object>();
+		List<Elective> electives = electiveDao.findByCourseScheduleUPK(upk.getTermId(), upk.getCno(), upk.getTno());
+		Map<String, Object> sName = new HashMap<String, Object>();
+		for (Elective e : electives) {
+			sName.put(e.getUpk().getSno(), studentDao.findById(e.getUpk().getSno()).get().getName());
+		}
+		map.put("studentName", sName);
+		map.put("electives", electives);
+		return map;
+	}
+
+	@Override
+	public Map<String, Object> validateScore(String[] usualScore, String[] examScore) {
+		Map<String, Object> map = new HashMap<String, Object>();
+		int s = usualScore.length;
+		int flag = 0;
+		for (int i = 0; i < s; i++) {
+			if (!usualScore[i].matches(Constant.reg_num) || !examScore[i].matches(Constant.reg_num)) {
+				flag = 1;
+				break;
+			} else {
+				int usual = Integer.valueOf(usualScore[i]);
+				int exam = Integer.valueOf(examScore[i]);
+				if (usual < 0 || usual > 100 || exam < 0 || exam > 100) {
+					flag = 1;
+					break;
+				}
+			}
+		}
+		if (flag == 0) {
+			map.put("success", "登分成功");
+		} else {
+			map.put("error", "填写数据有误，请填写0~100之间的数字");
+		}
+		return map;
+	}
+
+	@Override
+	@Transactional
+	public Boolean updateScore(String[] usualScore, String[] examScore, String[] sno, String tno, String termId,
+			String cno) {
+		int size = sno.length;
+		List<Elective> electives = new ArrayList<Elective>();
+		for (int i = 0; i < size; i++) {
+			ElectiveUPK upk = new ElectiveUPK(sno[i], Integer.valueOf(termId), cno, tno);
+			Elective elective = new Elective(upk, Integer.valueOf(usualScore[i]), Integer.valueOf(examScore[i]), null);
+			electives.add(elective);
+		}
+		electiveDao.saveAll(electives);
+		return true;
 	}
 
 }

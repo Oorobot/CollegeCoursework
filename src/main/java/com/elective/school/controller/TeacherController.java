@@ -18,6 +18,7 @@ import com.elective.school.entity.CourseScheduleUPK;
 import com.elective.school.entity.Teacher;
 import com.elective.school.service.AdminService;
 import com.elective.school.service.TeacherService;
+import com.elective.school.util.Method;
 
 @Controller
 @RequestMapping("/teacher")
@@ -96,6 +97,7 @@ public class TeacherController {
 				courseSchedule.setClassroom(cs[2]);
 				courseSchedule.setNum(Integer.valueOf(cs[3]));
 				courseSchedule.setWeight(Integer.valueOf(cs[4]));
+				courseSchedule.setNumber(0);
 				adminService.save(courseSchedule);
 			}
 		}
@@ -112,8 +114,7 @@ public class TeacherController {
 			map.put("term", adminService.getTerm(Integer.valueOf(termId)));
 			map.putAll(teacherService.getCS(Integer.valueOf(termId), teacher.getTno()));
 		}
-		map.put("category", "opened");
-		return "teacher-home";
+		return "teacher-cses";
 	}
 
 	@GetMapping("/opened/update/{termId}/{tno}/{cno}")
@@ -146,7 +147,6 @@ public class TeacherController {
 			return url;
 		}
 
-		
 		map.put("CourseSchedule", courseSchedule);
 		map.put("course", adminService.getCourse(courseSchedule.getUpk().getCno()));
 		map.put("term", adminService.getTerm(upk.getTermId()));
@@ -154,11 +154,65 @@ public class TeacherController {
 		map.put("adr", "opened");
 		return "teacher-cs";
 	}
+
 	@GetMapping("/opened/look/{termId}/{tno}/{cno}")
-	public String courseOpenedStudent(@PathVariable(name = "termId") String termId, @PathVariable(name = "tno") String tno,
-			@PathVariable(name = "cno") String cno, Map<String, Object> map) {
+	public String courseOpenedStudent(@PathVariable(name = "termId") String termId,
+			@PathVariable(name = "tno") String tno, @PathVariable(name = "cno") String cno, Map<String, Object> map) {
 		CourseScheduleUPK upk = new CourseScheduleUPK(Integer.valueOf(termId), cno, tno);
 		map.putAll(adminService.getElective(upk));
 		return "teacher-home";
+	}
+
+	@GetMapping("/opened/delete/{termId}/{tno}/{cno}")
+	public String courseOpenedDelete(@PathVariable(name = "termId") String termId,
+			@PathVariable(name = "tno") String tno, @PathVariable(name = "cno") String cno, Map<String, Object> map) {
+		CourseScheduleUPK upk = new CourseScheduleUPK(Integer.valueOf(termId), cno, tno);
+		map.putAll(teacherService.deleteCS(upk));
+		return "forward:/teacher/opened?termId=" + termId;
+	}
+
+	@GetMapping("/opened/score/{termId}/{tno}/{cno}")
+	public String courseOpenedScore(@PathVariable(name = "termId") String termId,
+			@PathVariable(name = "tno") String tno, @PathVariable(name = "cno") String cno, Map<String, Object> map) {
+		CourseScheduleUPK upk = new CourseScheduleUPK(Integer.valueOf(termId), cno, tno);
+		map.putAll(teacherService.score(upk));
+		map.put("upk", upk);
+		return "teacher-score";
+	}
+
+	@GetMapping("/opened/score/save")
+	public String scoreSave(Map<String, Object> map, @RequestParam(name = "sno") String[] sno,
+			@RequestParam(name = "usualScore") String[] usualScore,
+			@RequestParam(name = "examScore") String[] examScore, @RequestParam(name = "termId") String termId,
+			@RequestParam(name = "cno") String cno, HttpSession session) {
+		Teacher teacher = (Teacher) session.getAttribute("teacher");
+		map.putAll(teacherService.validateScore(usualScore, examScore));
+		if (map.get("error") == null) {
+			if (teacherService.updateScore(usualScore, examScore, sno, teacher.getTno(), termId, cno))
+				return "forward:/teacher/opened/look/" + termId + "/" + teacher.getTno() + "/" + cno;
+		}
+		return "forward:/teacher/opened/score/" + termId + "/" + teacher.getTno() + "/" + cno;
+	}
+
+	@GetMapping("/password")
+	public String password(Map<String, Object> map) {
+		map.put("adr", "teacher/password");
+		return "password";
+	}
+
+	@PostMapping("/password")
+	public String updatePassword(Map<String, Object> map, @RequestParam(name = "password1") String password1,
+			@RequestParam(name = "password2") String password2, HttpSession session) {
+		Teacher teacher = (Teacher) session.getAttribute("teacher");
+		map.put("adr", "teacher/password");
+		if (password1.equals(password2)) {
+			teacher.setPassword(Method.md5Encoding(password1));
+			adminService.save(teacher);
+			map.put("teacher", teacher);
+			map.put("success", "修改成功");
+		} else {
+			map.put("error", "两次输入密码不正确");
+		}
+		return "password";
 	}
 }

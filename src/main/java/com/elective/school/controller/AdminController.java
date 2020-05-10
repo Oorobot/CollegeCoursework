@@ -22,7 +22,7 @@ import com.elective.school.entity.CourseScheduleUPK;
 import com.elective.school.entity.Student;
 import com.elective.school.entity.Teacher;
 import com.elective.school.entity.Term;
-import com.elective.school.service.Impl.AdminServiceImpl;
+import com.elective.school.service.AdminService;
 import com.elective.school.util.Constant;
 import com.elective.school.util.Method;
 
@@ -33,7 +33,7 @@ import com.elective.school.util.Method;
 public class AdminController {
 
 	@Autowired
-	AdminServiceImpl adminService;
+	AdminService adminService;
 
 	@GetMapping("")
 	public String home(Map<String, Object> map, HttpSession httpSession) {
