@@ -23,42 +23,15 @@
     <ClInclude Include="pl0.h">
       <Filter>源文件</Filter>
     </ClInclude>
-    <ClInclude Include="resource.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="3.txt">
+    <Text Include="4-1.txt">
       <Filter>源文件</Filter>
     </Text>
-    <Text Include="3-1.txt">
+    <Text Include="4-0.txt">
       <Filter>源文件</Filter>
     </Text>
-    <Text Include="3-2.txt">
-      <Filter>源文件</Filter>
-    </Text>
-    <Text Include="3-3.txt">
-      <Filter>源文件</Filter>
-    </Text>
-    <Text Include="3-4.txt">
-      <Filter>源文件</Filter>
-    </Text>
-    <Text Include="3-5.txt">
-      <Filter>源文件</Filter>
-    </Text>
-    <Text Include="3-6.txt">
-      <Filter>源文件</Filter>
-    </Text>
-    <Text Include="3-7.txt">
-      <Filter>源文件</Filter>
-    </Text>
-    <Text Include="3-8.txt">
-      <Filter>源文件</Filter>
-    </Text>
-    <Text Include="3-9.txt">
-      <Filter>源文件</Filter>
-    </Text>
-    <Text Include="3-0.txt">
+    <Text Include="4-2.txt">
       <Filter>源文件</Filter>
     </Text>
   </ItemGroup>

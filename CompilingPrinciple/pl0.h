@@ -54,3 +54,7 @@ vector<WordAndCode> outputWordAndCode(string infile, string outfile);
 bool expression(vector<WordAndCode> wac, int& p,int& l);
 bool term(vector<WordAndCode> wac, int& p,int& l);
 bool factor(vector<WordAndCode> wac, int& p,int& l);
+
+int stringToNum(string num);
+void compute(vector<WordAndCode> wac);
+WordAndCode computeWithoutParen(vector<WordAndCode> temp);

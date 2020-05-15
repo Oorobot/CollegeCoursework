@@ -13,22 +13,24 @@ int main()
 	//outputWordAndCode("case03.txt", "output2-3.txt");
 	//outputWordAndCode("case04.txt", "output2-4.txt");
 	//outputWordAndCode("case05.txt", "output2-5.txt");
-	int p = 0, l = 0;
+	/*int p = 0, l = 0;
 	vector<WordAndCode> wac = outputWordAndCode("3-8.txt", "3.txt");
 	if (expression(wac, p, l))
-		cout << "语法正确" << endl;
-	/*string s = "3-";
-	char j = '0';
-	for (int i = 0; i <= 9; i++) {
-		int p = 0,l=0;
-		printf("\n");
-		vector<WordAndCode> wac = outputWordAndCode(s + j + ".txt", "3.txt");
-		j = j + 1;
-		if (expression(wac, p, l))
-			cout << "语法正确" << endl;
-		else
-			cout << "语法错误" << endl;
-	}*/
+		cout << "语法正确" << endl;*/
+		/*string s = "3-";
+		char j = '0';
+		for (int i = 0; i <= 9; i++) {
+			int p = 0,l=0;
+			printf("\n");
+			vector<WordAndCode> wac = outputWordAndCode(s + j + ".txt", "3.txt");
+			j = j + 1;
+			if (expression(wac, p, l))
+				cout << "语法正确" << endl;
+			else
+				cout << "语法错误" << endl;
+		}*/
+	vector<WordAndCode> wac = outputWordAndCode("./txt/4-2.txt", "./txt/4.txt");
+	compute(wac);
 }
 
 
@@ -54,7 +56,7 @@ void init(map<string, string>& m)
 
 void split(vector<string>& s, const vector<string>& c) {
 	for (string cstr : c) {
-		int size = s.size();
+		size_t size = s.size();
 		for (int i = 0; i < size; i++) {
 			string str = s.front();
 			s.erase(s.begin());
@@ -371,7 +373,7 @@ bool factor(vector<WordAndCode> wac, int& p, int& l) {
 		{
 			if (wac[p].code == "nul")
 				cout << wac[p].word << "非法字符" << endl;
-			else if(wac[p].code == "rparen"){
+			else if (wac[p].code == "rparen") {
 				cout << wac[p].word << "()不能为空" << endl;
 			}
 			else
@@ -380,4 +382,124 @@ bool factor(vector<WordAndCode> wac, int& p, int& l) {
 		}
 	}
 	return true;
+}
+
+int stringToNum(string num)
+{
+	return atoi(num.c_str());
+}
+
+void compute(vector<WordAndCode> wac)
+{
+	while (!wac.empty()) {
+		int lp = -1, rp = -1;
+		for (int i = 0; i < wac.size(); i++) {
+			if (wac[i].code == "lparen")
+				lp = i;
+			if (wac[i].code == "rparen") {
+				rp = i;
+				break;
+			}
+		}
+		if (lp > -1 && rp > -1) {
+			int len = (int)rp - (int)lp;
+			vector<WordAndCode> temp;
+			for (int i = 1; i < len; i++) {
+				temp.push_back(wac[lp + i]);
+			}
+			wac.erase(wac.begin() + lp + 1, wac.begin() + rp + 1);
+			for (WordAndCode w : wac) {
+				cout << w.word << endl;
+			}
+			WordAndCode result = computeWithoutParen(temp);
+			wac[lp].code = result.code;
+			wac[lp].word = result.word;
+			if (result.code == "nul") {
+				wac.clear();
+				cout << "表达式有误无法计算" << endl;
+			}
+		}
+		int flag = 0;
+		for (auto x : wac) {
+			if (x.code == "lparen") {
+				flag = 1;
+				break;
+			}
+		}
+		if (flag == 0) {
+			WordAndCode result = computeWithoutParen(wac);
+			wac.clear();
+			if (result.code == "nul") {
+				wac.clear();
+				cout << "表达式有误无法计算" << endl;
+			}
+			else {
+				cout << result.word << endl;
+			}
+		}
+	}
+}
+
+WordAndCode computeWithoutParen(vector<WordAndCode> temp)
+{
+	vector<WordAndCode> op, num;
+	WordAndCode result;
+	result.code = "nul";
+	WordAndCode begin = temp.front();
+	if (begin.code == "minus") {
+		temp.erase(temp.begin());
+		begin = temp.front();
+		int x = stringToNum(begin.word);
+		x = 0 - x;
+		temp[0].word = to_string(x);
+	}
+	for (auto t : temp) {
+		if (t.code == "number")
+			num.push_back(t);
+		if (t.code == "plus" || t.code == "minus" || t.code == "times" || t.code == "slash")
+			op.push_back(t);
+	}
+	if (op.size() != num.size() - 1)
+		return result;
+	for (size_t i = 0; i < num.size() - 1; i++) {
+		if (!op.empty() && op[i].code == "times") {
+			int x = stringToNum(num[i].word);
+			int y = stringToNum(num[i + 1].word);
+			num.erase(num.begin() + i);
+			num[i].word = to_string(x * y);
+			op.erase(op.begin() + i);
+			i--;
+		}
+		else if (!op.empty() && op[i].code == "slash") {
+			int x = stringToNum(num[i].word);
+			int y = stringToNum(num[i + 1].word);
+			num.erase(num.begin() + i);
+			if (y == 0) {
+				return result;
+			}
+			num[i].word = to_string(x / y);
+			op.erase(op.begin() + i);
+			i--;
+		}
+	}
+	for (int i = 0; i < num.size() - 1; i++) {
+		if (!op.empty() && op[i].code == "plus") {
+			int x = stringToNum(num[i].word);
+			int y = stringToNum(num[i + 1].word);
+			num.erase(num.begin() + i);
+			num[i].word = to_string(x + y);
+			op.erase(op.begin() + i);
+			i--;
+		}
+		else if (!op.empty() && op[i].code == "minus") {
+			int x = stringToNum(num[i].word);
+			int y = stringToNum(num[i + 1].word);
+			num.erase(num.begin() + i);
+			num[i].word = to_string(x - y);
+			op.erase(op.begin() + i);
+			i--;
+		}
+	}
+	result = num.front();
+	return result;
 }
