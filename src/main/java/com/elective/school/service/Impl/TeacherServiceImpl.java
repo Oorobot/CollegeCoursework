@@ -191,10 +191,15 @@ public class TeacherServiceImpl implements TeacherService {
 	public Boolean updateScore(String[] usualScore, String[] examScore, String[] sno, String tno, String termId,
 			String cno) {
 		int size = sno.length;
+		CourseScheduleUPK csupk = new CourseScheduleUPK(Integer.valueOf(termId), cno, tno);
+		CourseSchedule cs = csDao.findById(csupk).get();
 		List<Elective> electives = new ArrayList<Elective>();
 		for (int i = 0; i < size; i++) {
 			ElectiveUPK upk = new ElectiveUPK(sno[i], Integer.valueOf(termId), cno, tno);
-			Elective elective = new Elective(upk, Integer.valueOf(usualScore[i]), Integer.valueOf(examScore[i]), null);
+			Integer totalScore = (Integer.valueOf(usualScore[i]) * cs.getWeight()
+					+ Integer.valueOf(examScore[i]) * (100 - cs.getWeight())) / 100;
+			Elective elective = new Elective(upk, Integer.valueOf(usualScore[i]), Integer.valueOf(examScore[i]),
+					totalScore);
 			electives.add(elective);
 		}
 		electiveDao.saveAll(electives);

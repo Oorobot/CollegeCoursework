@@ -6,7 +6,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Insert title here</title>
+<title>课表管理</title>
 </head>
 <body>
 	<div class="container">
@@ -128,14 +128,14 @@
 <script
 	src="${pageContext.request.contextPath}/bootstrap/js/bootstrap.min.js"></script>
 <script type="text/javascript">
-	$('#csModal').on('show.bs.modal', function (event) {
-		  var button = $(event.relatedTarget)
-		  var recipient = button.data('whatever')
-		  var modal = $(this)
-		  var form = modal.find('.modal-body form input')
-		  modal.find('.modal-body form input').val(recipient)
-		})
-	
+	$('#csModal').on('show.bs.modal', function(event) {
+		var button = $(event.relatedTarget)
+		var recipient = button.data('whatever')
+		var modal = $(this)
+		var form = modal.find('.modal-body form input')
+		modal.find('.modal-body form input').val(recipient)
+	})
+
 	function memo() {
 		var form = document.getElementById('memoForm');
 		var button = document.getElementById('adr');

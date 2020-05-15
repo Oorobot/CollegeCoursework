@@ -6,7 +6,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>成绩</title>
+<title>学生成绩</title>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link
@@ -52,55 +52,90 @@
 		</c:if>
 		<c:if test="${term.status == 4 }">
 			<!-- 主体内容 -->
-			<table class="table">
-				<thead>
-					<tr>
-						<th>课程号</th>
-						<th>课程名</th>
-						<th>成绩</th>
-					</tr>
-				</thead>
-				<tbody>
-					<c:forEach items="${electives }" var="e">
+			<c:if test="${empty electives }">
+				<h4>无成绩信息</h4>
+			</c:if>
+			<c:if test="${!empty electives }">
+				<table class="table">
+					<thead>
 						<tr>
-							<td>${e.upk.cno }</td>
-							<td>${courseName[e.upk.cno] }</td>
-							<td>${e.totalScore }</td>
+							<th>课程号</th>
+							<th>课程名</th>
+							<th>学分</th>
+							<th>成绩</th>
 						</tr>
-					</c:forEach>
-				</tbody>
-			</table>
+					</thead>
+					<tbody>
+						<c:forEach items="${electives }" var="e">
+							<tr>
+								<td>${e.upk.cno }</td>
+								<td>${courseName[e.upk.cno] }</td>
+								<td>${courseCredit[e.upk.cno] }</td>
+								<c:if test="${empty e.totalScore }">
+									<td>无成绩</td>
+								</c:if>
+								<c:if test="${!empty e.totalScore }">
+									<td>${e.totalScore }</td>
+								</c:if>
+							</tr>
+						</c:forEach>
+					</tbody>
+				</table>
+			</c:if>
 		</c:if>
 		<!-- 选择全部时，显示成绩 -->
 		<c:if test="${term.id == -1 }">
-			<c:forEach items="${termsOfElectives }" var="te">
-				<h4>${te.term }:</h4>
-				<c:if test="${te.status != 4 }">
-					<label>该学期成绩未公布！</label>
-				</c:if>
-				<c:if test="${te.status == 4 }">
-					<table class="table">
-						<thead>
-							<tr>
-								<th>课程号</th>
-								<th>课程名</th>
-								<th>成绩</th>
-							</tr>
-						</thead>
+			<c:if test="${empty termsOfElectives }">
+				<h4>无成绩信息</h4>
+			</c:if>
+			<c:if test="${!empty termsOfElectives }">
+				<table class="table">
+					<thead>
+						<tr>
+							<th>学期</th>
+							<th>课程号</th>
+							<th>课程名</th>
+							<th>学分</th>
+							<th>成绩</th>
+						</tr>
+					</thead>
+					<c:forEach items="${termsOfElectives }" var="te">
 						<tbody>
-							<c:forEach items="${electives }" var="e">
-								<c:if test="${e.upk.termId == te.id }">
-									<tr>
-										<td>${e.upk.cno }</td>
-										<td>${courseName[e.upk.cno] }</td>
-										<td>${e.totalScore }</td>
-									</tr>
-								</c:if>
-							</c:forEach>
+							<c:if test="${te.status != 4 }">
+								<tr>
+									<td>${te.term }</td>
+									<td style="color: blue;">该学期课程尚未公布</td>
+								</tr>
+							</c:if>
+							<c:if test="${te.status == 4 }">
+								<c:forEach items="${electives }" var="e">
+									<c:if test="${e.upk.termId == te.id }">
+										<tr>
+											<td>${te.term }</td>
+											<td>${e.upk.cno }</td>
+											<td>${courseName[e.upk.cno] }</td>
+											<td>${courseCredit[e.upk.cno] }</td>
+											<c:if test="${empty e.totalScore }">
+												<td>无成绩</td>
+											</c:if>
+											<c:if test="${!empty e.totalScore }">
+												<td>${e.totalScore }</td>
+											</c:if>
+										</tr>
+									</c:if>
+								</c:forEach>
+							</c:if>
+							<tr>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+							</tr>
 						</tbody>
-					</table>
-				</c:if>
-			</c:forEach>
+					</c:forEach>
+				</table>
+			</c:if>
 		</c:if>
 	</div>
 

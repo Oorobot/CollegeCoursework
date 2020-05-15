@@ -17,6 +17,7 @@ import com.elective.school.dao.ElectiveDao;
 import com.elective.school.dao.StudentDao;
 import com.elective.school.dao.TeacherDao;
 import com.elective.school.dao.TermDao;
+import com.elective.school.entity.Course;
 import com.elective.school.entity.CourseSchedule;
 import com.elective.school.entity.CourseScheduleUPK;
 import com.elective.school.entity.Elective;
@@ -82,10 +83,11 @@ public class StudentServiceImpl implements StudentService {
 	public Map<String, Object> saveElective(ElectiveUPK upk) {
 		Map<String, Object> map = new HashMap<String, Object>();
 		if (!electiveDao.existsById(upk)) {
-			CourseScheduleUPK csUPK = new CourseScheduleUPK(upk.getTermId(), upk.getCno(), upk.getTno());
-			CourseSchedule cs = csDao.findById(csUPK).get();
-			cs.setNumber(cs.getNumber() + 1);
-			csDao.save(cs);
+			// 学生选课，课程人数+1
+//			CourseScheduleUPK csUPK = new CourseScheduleUPK(upk.getTermId(), upk.getCno(), upk.getTno());
+//			CourseSchedule cs = csDao.findById(csUPK).get();
+//			cs.setNumber(cs.getNumber() + 1);
+//			csDao.save(cs);
 			Elective elective = new Elective(upk, 0, 0, 0);
 			electiveDao.save(elective);
 			map.put("success", "选课成功");
@@ -100,6 +102,7 @@ public class StudentServiceImpl implements StudentService {
 	public Map<String, Object> deleteElective(ElectiveUPK upk) {
 		Map<String, Object> map = new HashMap<String, Object>();
 		if (electiveDao.existsById(upk)) {
+			// 学生退课，课程人数-1
 			CourseScheduleUPK csUPK = new CourseScheduleUPK(upk.getTermId(), upk.getCno(), upk.getTno());
 			CourseSchedule cs = csDao.findById(csUPK).get();
 			cs.setNumber(cs.getNumber() - 1);
@@ -153,10 +156,14 @@ public class StudentServiceImpl implements StudentService {
 			electives = electiveDao.findBySnoAndTermId(sno, id);
 		}
 		Map<String, String> cName = new HashMap<String, String>();
+		Map<String, Integer> cCredit = new HashMap<String, Integer>();
 		for (Elective e : electives) {
-			cName.put(e.getUpk().getCno(), courseDao.findById(e.getUpk().getCno()).get().getName());
+			Course c_temp = courseDao.findById(e.getUpk().getCno()).get();
+			cName.put(e.getUpk().getCno(), c_temp.getName());
+			cCredit.put(e.getUpk().getCno(), c_temp.getCredit());
 		}
 		map.put("courseName", cName);
+		map.put("courseCredit", cCredit);
 		map.put("electives", electives);
 		return map;
 	}

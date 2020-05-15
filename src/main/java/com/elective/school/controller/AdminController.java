@@ -106,13 +106,14 @@ public class AdminController {
 			Map<String, Object> map, @RequestParam(name = "operate", required = false) String operate) {
 		Academy a = new Academy(academy[0], academy[1], academy[2], academy[3]);
 		map.putAll(adminService.validateAcademy(a));
-		if (map.size() == 0) {
+		if (map.get("error") == null) {
 			if (operate.equals("add")) {
 				map.putAll(adminService.exist(a));
 				if (map.get("success") != null) {
 					adminService.save(a);
 				}
 			} else if (operate.equals("update")) {
+				map.put("success", "修改成功");
 				adminService.save(a);
 			}
 		}
@@ -147,16 +148,18 @@ public class AdminController {
 	public String courseSave(@RequestParam(name = "course", required = false) String[] course, Map<String, Object> map,
 			@RequestParam(name = "operate", required = false) String operate) {
 		map.putAll(adminService.validateCourse(course));
-		if (map.size() == 0) {
+		if (map.get("error") == null) {
 			Course c = new Course(course[0], course[1], Integer.valueOf(course[2]), Integer.valueOf(course[3]),
 					course[4]);
 			if (operate.equals("add")) {
 				map.putAll(adminService.exist(c));
 				if (map.get("success") != null) {
 					adminService.save(c);
+					map.put("success","添加成功");
 				}
 			} else if (operate.equals("update")) {
 				adminService.save(c);
+				map.put("success","修改成功");
 			}
 		}
 		map.putAll(adminService.getCourses());
@@ -207,12 +210,12 @@ public class AdminController {
 		if (map.get("error") == null) {
 			Student s = (Student) map.get("student");
 			if (operate.equals("add")) {
-				// System.out.println(s);
 				map.putAll(adminService.exist(s));
 				if (map.get("success") != null) {
 					adminService.save(s);
 				}
 			} else if (operate.equals("update")) {
+				System.out.println(s);
 				Student ss = adminService.getStudent(s.getSno());
 				s.setPassword(ss.getPassword());
 				adminService.save(s);

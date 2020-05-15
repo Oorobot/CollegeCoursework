@@ -6,34 +6,49 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Insert title here</title>
+<title>课程中学生信息</title>
 </head>
 <body>
 	<div class="container">
-		<label>学期：${term },	课程名：${courseName },	教师：${teacherName }</label>
-		<br><label>共${numOfElectives }名学生</label>
+		<label>学期：${term }, 课程名：${courseName }, 教师：${teacherName }</label> <br>
+		<label>共${numOfElectives }名学生</label>
 		<table class="table">
-				<thead>
+			<thead>
+				<tr>
+					<th>学号</th>
+					<th>姓名</th>
+					<th>平时成绩</th>
+					<th>考试成绩</th>
+					<th>总成绩</th>
+				</tr>
+			</thead>
+			<tbody>
+				<c:forEach items="${electives }" var="e">
 					<tr>
-						<th>学号</th>
-						<th>姓名</th>
-						<th>平时成绩</th>
-						<th>考试成绩</th>
-						<th>总成绩</th>
-					</tr>
-				</thead>
-				<tbody>
-					<c:forEach items="${electives }" var="e">
-						<tr>
-							<td>${e.upk.sno }</td>
-							<td>${studentName[e.upk.sno] }</td>
+						<td>${e.upk.sno }</td>
+						<td>${studentName[e.upk.sno] }</td>
+						<c:if test="${empty e.usualScore }">
+							<td>无成绩</td>
+						</c:if>
+						<c:if test="${!empty e.usualScore }">
 							<td>${e.usualScore }</td>
+						</c:if>
+						<c:if test="${empty e.examScore }">
+							<td>无成绩</td>
+						</c:if>
+						<c:if test="${!empty e.examScore }">
 							<td>${e.examScore }</td>
+						</c:if>
+						<c:if test="${empty e.totalScore }">
+							<td>无成绩</td>
+						</c:if>
+						<c:if test="${!empty e.totalScore }">
 							<td>${e.totalScore }</td>
-						</tr>
-					</c:forEach>
-				</tbody>
-			</table>
+						</c:if>
+					</tr>
+				</c:forEach>
+			</tbody>
+		</table>
 	</div>
 
 

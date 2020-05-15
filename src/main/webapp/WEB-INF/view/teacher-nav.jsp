@@ -4,7 +4,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Insert title here</title>
+<title>教师导航栏</title>
 </head>
 <body>
 	<!-- 导航栏 -->

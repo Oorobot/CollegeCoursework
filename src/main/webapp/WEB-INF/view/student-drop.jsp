@@ -6,7 +6,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>退课</title>
+<title>学生退课</title>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link
@@ -68,7 +68,9 @@
 						<th>人数</th>
 						<th>上课时间</th>
 						<th>上课教室</th>
-						<th>操作</th>
+						<c:if test="${term.status == 1 }">
+							<th>操作</th>
+						</c:if>
 					</tr>
 				</thead>
 				<tbody>
@@ -81,10 +83,12 @@
 							<td style="color: blue;">${cs.number }/${cs.num }</td>
 							<td>${cs.time }</td>
 							<td>${cs.classroom }</td>
-							<td><a
-								href="${pageContext.request.contextPath}/student/drop/${cs.upk.termId }/${cs.upk.tno }/${cs.upk.cno }">
-									<button type="button" class="btn btn-danger">退课</button>
-							</a></td>
+							<c:if test="${term.status == 1 }">
+								<td><a
+									href="${pageContext.request.contextPath}/student/drop/${cs.upk.termId }/${cs.upk.tno }/${cs.upk.cno }">
+										<button type="button" class="btn btn-danger">退课</button>
+								</a></td>
+							</c:if>
 						</tr>
 					</c:forEach>
 				</tbody>

@@ -4,7 +4,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Insert title here</title>
+<title>管理员导航栏</title>
 </head>
 <body>
 	<!-- 导航栏 -->
@@ -41,13 +41,14 @@
 							<li><a href="${pageContext.request.contextPath}/admin/teacher">教师管理</a></li>
 						</ul></li>
 				</ul>
-				<!-- 搜索栏 -->
+				<!-- 搜索栏 
 				<form class="navbar-form navbar-left">
 					<div class="form-group">
 						<input type="text" class="form-control" placeholder="Search">
 					</div>
 					<button type="submit" class="btn btn-default">查询</button>
 				</form>
+				-->
 				<ul class="nav navbar-nav navbar-right">
 					<li><a href="${pageContext.request.contextPath}/logout">退出</a></li>
 				</ul>

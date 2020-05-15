@@ -100,7 +100,7 @@ public class StudentController {
 	@GetMapping("/drop")
 	public String drop(HttpSession session, Map<String, Object> map,
 			@RequestParam(name = "termId", required = false) String termId) {
-		map.putAll(studentService.getTermOnSelect());
+		map.putAll(adminService.getTerms());
 		Student student = (Student) session.getAttribute("student");
 		if (termId != null) {
 			map.put("term", adminService.getTerm(Integer.valueOf(termId)));

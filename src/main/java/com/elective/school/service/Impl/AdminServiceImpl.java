@@ -332,7 +332,7 @@ public class AdminServiceImpl implements AdminService {
 			Student s = new Student();
 			s.setSno(student[0]);
 			s.setName(student[1]);
-			s.setSex(Boolean.getBoolean(student[2]));
+			s.setSex(Boolean.valueOf(student[2]));
 			s.setBirthday(Date.valueOf(student[3]));
 			s.setPassword(Method.md5Encoding("123456"));
 			s.setHometown(student[4]);

@@ -4,7 +4,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Insert title here</title>
+<title>学生导航栏</title>
 </head>
 <body>
 	<!-- 导航栏 -->
@@ -28,7 +28,7 @@
 				<ul class="nav navbar-nav">
 					<li><a href="${pageContext.request.contextPath}/student/info">个人信息</a></li>
 					<li><a href="${pageContext.request.contextPath}/student/select">选课</a></li>
-					<li><a href="${pageContext.request.contextPath}/student/drop">退课</a></li>
+					<li><a href="${pageContext.request.contextPath}/student/drop">退课/查看课表</a></li>
 					<li><a href="${pageContext.request.contextPath}/student/score">查看成绩</a></li>
 				</ul>
 				<ul class="nav navbar-nav navbar-right">
