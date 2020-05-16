@@ -1,6 +1,0 @@
-(lparen,()
-(number,90)
-(rparen,))
-(plus,+)
-(lparen,()
-(rparen,))

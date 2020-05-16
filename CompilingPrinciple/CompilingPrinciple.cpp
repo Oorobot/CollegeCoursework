@@ -3,34 +3,31 @@
 int main()
 {
 	init(map_ob);
-	//outputIdentNum("case01.txt", "output1-1.txt");
-	//outputIdentNum("case02.txt", "output1-2.txt");
-	//outputIdentNum("case03.txt", "output1-3.txt");
-	//outputIdentNum("case04.txt", "output1-4.txt");
-	//outputIdentNum("case05.txt", "output1-5.txt");
-	//outputWordAndCode("case01.txt", "output2-1.txt");
-	//outputWordAndCode("case02.txt", "output2-2.txt");
-	//outputWordAndCode("case03.txt", "output2-3.txt");
-	//outputWordAndCode("case04.txt", "output2-4.txt");
-	//outputWordAndCode("case05.txt", "output2-5.txt");
-	/*int p = 0, l = 0;
-	vector<WordAndCode> wac = outputWordAndCode("3-8.txt", "3.txt");
-	if (expression(wac, p, l))
-		cout << "语法正确" << endl;*/
-		/*string s = "3-";
-		char j = '0';
-		for (int i = 0; i <= 9; i++) {
-			int p = 0,l=0;
-			printf("\n");
-			vector<WordAndCode> wac = outputWordAndCode(s + j + ".txt", "3.txt");
-			j = j + 1;
-			if (expression(wac, p, l))
-				cout << "语法正确" << endl;
-			else
-				cout << "语法错误" << endl;
-		}*/
-	vector<WordAndCode> wac = outputWordAndCode("./txt/4-2.txt", "./txt/4.txt");
-	compute(wac);
+	//outputIdentNum("./txt/case01.txt", "./txt/1-1.txt");
+	//outputIdentNum("./txt/case02.txt", "./txt/1-2.txt");
+	//outputIdentNum("./txt/case03.txt", "./txt/1-3.txt");
+	//outputIdentNum("./txt/case04.txt", "./txt/1-4.txt");
+	//outputIdentNum("./txt/case05.txt", "./txt/1-5.txt");
+	//outputWordAndCode("./txt/case01.txt", "./txt/2-1.txt");
+	//outputWordAndCode("./txt/case02.txt", "./txt/2-2.txt");
+	//outputWordAndCode("./txt/case03.txt", "./txt/2-3.txt");
+	//outputWordAndCode("./txt/case04.txt", "./txt/2-4.txt");
+	//outputWordAndCode("./txt/case05.txt", "./txt/2-5.txt");
+	string str3 = "./txt/3-";
+	string str4 = "./txt/4-";
+	char j = '0';
+	for (int i = 0; i <= 9; i++) {
+		int p = 0, l = 0;
+		printf("\n");
+		vector<WordAndCode> wac = outputWordAndCode(str4 + j + ".txt", "./txt/output.txt");
+		j = j + 1;
+		if (expression(wac, p, l)) {
+			cout << "语法正确" << endl;
+			compute(wac);
+		}
+		else
+			cout << "语法错误" << endl;
+	}
 }
 
 
@@ -176,12 +173,12 @@ vector<WordAndCode> outputWordAndCode(string infile, string outfile)
 				token[count] = '\0';
 				string t(token);
 				if (isBasicWord(t, basicWord)) {
-					cout << "(" << t + "sym" << "," << t << ")" << endl;
+					//cout << "(" << t + "sym" << "," << t << ")" << endl;
 					out << "(" << t + "sym" << "," << t << ")" << endl;
 					wac.push_back({ t + "sym",t });
 				}
 				else {
-					cout << "(" << "ident" << "," << t << ")" << endl;
+					//cout << "(" << "ident" << "," << t << ")" << endl;
 					out << "(" << "ident" << "," << t << ")" << endl;
 					wac.push_back({ "iden",t });
 				}
@@ -194,7 +191,7 @@ vector<WordAndCode> outputWordAndCode(string infile, string outfile)
 					i++;
 				}
 				token[count] = '\0';
-				cout << "(" << "number" << "," << token << ")" << endl;
+				//cout << "(" << "number" << "," << token << ")" << endl;
 				out << "(" << "number" << "," << token << ")" << endl;
 				wac.push_back({ "number", token });
 			}
@@ -204,7 +201,7 @@ vector<WordAndCode> outputWordAndCode(string infile, string outfile)
 				i++;
 				token[1] = '\0';
 				string t(token);
-				cout << "(" << map_ob.find(t)->second << "," << token << ")" << endl;
+				//cout << "(" << map_ob.find(t)->second << "," << token << ")" << endl;
 				out << "(" << map_ob.find(t)->second << "," << token << ")" << endl;
 				wac.push_back({ map_ob.find(t)->second, token });
 			}
@@ -216,7 +213,7 @@ vector<WordAndCode> outputWordAndCode(string infile, string outfile)
 					i++;
 					token[2] = '\0';
 					string t(token);
-					cout << "(" << map_ob.find(t)->second << "," << token << ")" << endl;
+					//cout << "(" << map_ob.find(t)->second << "," << token << ")" << endl;
 					out << "(" << map_ob.find(t)->second << "," << token << ")" << endl;
 					wac.push_back({ map_ob.find(t)->second, token });
 				}
@@ -225,12 +222,12 @@ vector<WordAndCode> outputWordAndCode(string infile, string outfile)
 					string t(token);
 					auto search = map_ob.find(t);
 					if (search != map_ob.end()) {
-						cout << "(" << search->second << "," << token << ")" << endl;
+						//cout << "(" << search->second << "," << token << ")" << endl;
 						out << "(" << search->second << "," << token << ")" << endl;
 						wac.push_back({ search->second, token });
 					}
 					else {
-						cout << "(  " << "未定义字符" << "  ,  " << token << "  )  " << endl;
+						//cout << "(  " << "未定义字符" << "  ,  " << token << "  )  " << endl;
 						out << "(  " << "未定义字符" << "  ,  " << token << "  )  " << endl;
 						wac.push_back({ "nul", token });
 					}
@@ -241,7 +238,7 @@ vector<WordAndCode> outputWordAndCode(string infile, string outfile)
 				token[0] = s[i];
 				token[1] = '\0';
 				i++;
-				cout << "(  " << "未定义字符" << "  ,  " << token << "  )  " << endl;
+				//cout << "(  " << "未定义字符" << "  ,  " << token << "  )  " << endl;
 				out << "(  " << "未定义字符" << "  ,  " << token << "  )  " << endl;
 				wac.push_back({ "nul", token });
 			}
@@ -408,9 +405,6 @@ void compute(vector<WordAndCode> wac)
 				temp.push_back(wac[lp + i]);
 			}
 			wac.erase(wac.begin() + lp + 1, wac.begin() + rp + 1);
-			for (WordAndCode w : wac) {
-				cout << w.word << endl;
-			}
 			WordAndCode result = computeWithoutParen(temp);
 			wac[lp].code = result.code;
 			wac[lp].word = result.word;

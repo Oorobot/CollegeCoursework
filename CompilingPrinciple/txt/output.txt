@@ -1,0 +1,7 @@
+(number,9)
+(minus,-)
+(number,7)
+(slash,/)
+(number,2)
+(plus,+)
+(number,3)
