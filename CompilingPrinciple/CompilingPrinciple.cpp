@@ -2,67 +2,60 @@
 
 int main()
 {
-	init(map_ob);
-	//outputIdentNum("./txt/case01.txt", "./txt/1-1.txt");
-	//outputIdentNum("./txt/case02.txt", "./txt/1-2.txt");
-	//outputIdentNum("./txt/case03.txt", "./txt/1-3.txt");
-	//outputIdentNum("./txt/case04.txt", "./txt/1-4.txt");
-	//outputIdentNum("./txt/case05.txt", "./txt/1-5.txt");
-	//outputWordAndCode("./txt/case01.txt", "./txt/2-1.txt");
-	//outputWordAndCode("./txt/case02.txt", "./txt/2-2.txt");
-	//outputWordAndCode("./txt/case03.txt", "./txt/2-3.txt");
-	//outputWordAndCode("./txt/case04.txt", "./txt/2-4.txt");
-	//outputWordAndCode("./txt/case05.txt", "./txt/2-5.txt");
-	string str3 = "./txt/3-";
+	/*outputIdentNum("./txt/case01.txt", "./txt/1-1.txt");
+	outputIdentNum("./txt/case02.txt", "./txt/1-2.txt");
+	outputIdentNum("./txt/case03.txt", "./txt/1-3.txt");
+	outputIdentNum("./txt/case04.txt", "./txt/1-4.txt");
+	outputIdentNum("./txt/case05.txt", "./txt/1-5.txt");
+	outputCodeAndWord("./txt/case01.txt", "./txt/2-1.txt");
+	outputCodeAndWord("./txt/case02.txt", "./txt/2-2.txt");
+	outputCodeAndWord("./txt/case03.txt", "./txt/2-3.txt");
+	outputCodeAndWord("./txt/case04.txt", "./txt/2-4.txt");
+	outputCodeAndWord("./txt/case05.txt", "./txt/2-5.txt");*/
+	/*string str3 = "./txt/3-";
 	string str4 = "./txt/4-";
 	char j = '0';
 	for (int i = 0; i <= 9; i++) {
-		int p = 0, l = 0;
+		size_t p = 0;
+		int l = 0;
 		printf("\n");
-		vector<WordAndCode> wac = outputWordAndCode(str4 + j + ".txt", "./txt/output.txt");
+		vector<CodeAndWord> caw = outputCodeAndWord(str3 + j + ".txt", "./txt/output.txt");
 		j = j + 1;
-		if (expression(wac, p, l)) {
+		if (expression(caw, p, l)) {
 			cout << "语法正确" << endl;
-			compute(wac);
+			compute(caw);
 		}
 		else
 			cout << "语法错误" << endl;
-	}
+	}*/
+	/*for (int i = 0; i < symnum; i++) {
+		cout << symbol[i] << "  " << code[i] << endl;
+	}*/
 }
 
-
-void init(map<string, string>& m)
-{
-	m.insert(pair<string, string>("+", "plus"));
-	m.insert(pair<string, string>("-", "minus"));
-	m.insert(pair<string, string>("*", "times"));
-	m.insert(pair<string, string>("/", "slash"));
-	m.insert(pair<string, string>("=", "eql"));
-	m.insert(pair<string, string>("#", "neq"));
-	m.insert(pair<string, string>("<", "lss"));
-	m.insert(pair<string, string>("<=", "leq"));
-	m.insert(pair<string, string>(">", "gtr"));
-	m.insert(pair<string, string>(">=", "geq"));
-	m.insert(pair<string, string>(":=", "becomes"));
-	m.insert(pair<string, string>("(", "lparen"));
-	m.insert(pair<string, string>(")", "rparen"));
-	m.insert(pair<string, string>(",", "comma"));
-	m.insert(pair<string, string>(";", "semicolon"));
-	m.insert(pair<string, string>(".", "period"));
-}
-
-void split(vector<string>& s, const vector<string>& c) {
-	for (string cstr : c) {
+void split(vector<string>& s, int start, int end) {
+	string blank = " ";
+	for (int j = start; j <= end + 1; j++) {
 		size_t size = s.size();
 		for (int i = 0; i < size; i++) {
 			string str = s.front();
 			s.erase(s.begin());
 			size_t pos1 = 0, pos2;
-			pos2 = str.find(cstr);
-			while (string::npos != pos2) {
-				s.push_back(str.substr(pos1, pos2 - pos1));
-				pos1 = pos2 + cstr.size();
-				pos2 = str.find(cstr, pos1);
+			if (j == end + 1) {
+				pos2 = str.find(blank);
+				while (string::npos != pos2) {
+					s.push_back(str.substr(pos1, pos2 - pos1));
+					pos1 = pos2 + blank.size();
+					pos2 = str.find(blank, pos1);
+				}
+			}
+			else {
+				pos2 = str.find(code[j]);
+				while (string::npos != pos2) {
+					s.push_back(str.substr(pos1, pos2 - pos1));
+					pos1 = pos2 + code[j].size();
+					pos2 = str.find(code[j], pos1);
+				}
 			}
 			if (pos1 != str.size())
 				s.push_back(str.substr(pos1));
@@ -77,7 +70,7 @@ void trim(string& s) {
 
 void countIdent(vector<IdAndNum>& ian, string ident) {
 	trim(ident);
-	if (ident.size() != 0 && !isBasicWord(ident, basicWord) && isIdent(ident)) {
+	if (ident.size() != 0 && keyword(ident) == symbol::ident && isIdent(ident)) {
 		if (ian.size() == 0) {
 			IdAndNum i = { ident,1 };
 			ian.push_back(i);
@@ -119,10 +112,7 @@ void outputIdentNum(string infile, string outfile) {
 		}
 		vector<string> word;
 		word.push_back(s);
-		split(word, _operator);
-		split(word, border);
-		vector<string> _split = { " " };
-		split(word, _split);
+		split(word, symbol::leq, symbol::period);
 		for (string w : word) {
 			countIdent(ian, w);
 		}
@@ -139,9 +129,9 @@ void outputIdentNum(string infile, string outfile) {
 	}
 }
 
-vector<WordAndCode> outputWordAndCode(string infile, string outfile)
+vector<CodeAndWord> outputCodeAndWord(string infile, string outfile)
 {
-	vector<WordAndCode> wac;
+	vector<CodeAndWord> caw;
 	string s;
 	ifstream in(infile);
 	if (!in.is_open()) {
@@ -172,16 +162,8 @@ vector<WordAndCode> outputWordAndCode(string infile, string outfile)
 				}
 				token[count] = '\0';
 				string t(token);
-				if (isBasicWord(t, basicWord)) {
-					//cout << "(" << t + "sym" << "," << t << ")" << endl;
-					out << "(" << t + "sym" << "," << t << ")" << endl;
-					wac.push_back({ t + "sym",t });
-				}
-				else {
-					//cout << "(" << "ident" << "," << t << ")" << endl;
-					out << "(" << "ident" << "," << t << ")" << endl;
-					wac.push_back({ "iden",t });
-				}
+				out << "(" << symbol[keyword(t)] << "," << t << ")" << endl;
+				caw.push_back({ keyword(t), t });
 			}
 			else if (s[i] >= '0' && s[i] <= '9') {
 				token[count++] = s[i];
@@ -191,9 +173,8 @@ vector<WordAndCode> outputWordAndCode(string infile, string outfile)
 					i++;
 				}
 				token[count] = '\0';
-				//cout << "(" << "number" << "," << token << ")" << endl;
-				out << "(" << "number" << "," << token << ")" << endl;
-				wac.push_back({ "number", token });
+				out << "(" << symbol[number] << "," << token << ")" << endl;
+				caw.push_back({ number, token });
 			}
 			else if (s[i] == '+' || s[i] == '-' || s[i] == '*' || s[i] == '/' || s[i] == '=' ||
 				s[i] == '#' || s[i] == '(' || s[i] == ')' || s[i] == ';' || s[i] == '.' || s[i] == ',') {
@@ -201,9 +182,8 @@ vector<WordAndCode> outputWordAndCode(string infile, string outfile)
 				i++;
 				token[1] = '\0';
 				string t(token);
-				//cout << "(" << map_ob.find(t)->second << "," << token << ")" << endl;
-				out << "(" << map_ob.find(t)->second << "," << token << ")" << endl;
-				wac.push_back({ map_ob.find(t)->second, token });
+				out << "(" << symbol[delimiterAndOperator(t[0])] << "," << token << ")" << endl;
+				caw.push_back({ delimiterAndOperator(t[0]), token });
 			}
 			else if (s[i] == '>' || s[i] == '<' || s[i] == ':') {
 				token[0] = s[i];
@@ -213,23 +193,19 @@ vector<WordAndCode> outputWordAndCode(string infile, string outfile)
 					i++;
 					token[2] = '\0';
 					string t(token);
-					//cout << "(" << map_ob.find(t)->second << "," << token << ")" << endl;
-					out << "(" << map_ob.find(t)->second << "," << token << ")" << endl;
-					wac.push_back({ map_ob.find(t)->second, token });
+					out << "(" << symbol[delimiterAndOperator(t[0]) + 1] << "," << token << ")" << endl;
+					caw.push_back({ delimiterAndOperator(t[0]) + 1, token });
 				}
 				else {
 					token[1] = '\0';
 					string t(token);
-					auto search = map_ob.find(t);
-					if (search != map_ob.end()) {
-						//cout << "(" << search->second << "," << token << ")" << endl;
-						out << "(" << search->second << "," << token << ")" << endl;
-						wac.push_back({ search->second, token });
+					if (delimiterAndOperator(t[0]) != becomes - 1) {
+						out << "(" << symbol[delimiterAndOperator(t[0])] << "," << token << ")" << endl;
+						caw.push_back({ delimiterAndOperator(t[0]), token });
 					}
 					else {
-						//cout << "(  " << "未定义字符" << "  ,  " << token << "  )  " << endl;
-						out << "(  " << "未定义字符" << "  ,  " << token << "  )  " << endl;
-						wac.push_back({ "nul", token });
+						out << "(  " << symbol[nul] << "  ,  " << token << "  )  " << endl;
+						caw.push_back({ nul, token });
 					}
 				}
 			}
@@ -238,30 +214,73 @@ vector<WordAndCode> outputWordAndCode(string infile, string outfile)
 				token[0] = s[i];
 				token[1] = '\0';
 				i++;
-				//cout << "(  " << "未定义字符" << "  ,  " << token << "  )  " << endl;
-				out << "(  " << "未定义字符" << "  ,  " << token << "  )  " << endl;
-				wac.push_back({ "nul", token });
+				out << "(  " << symbol[nul] << "  ,  " << token << "  )  " << endl;
+				caw.push_back({ nul, token });
 			}
 		}
 	}
 	out.close();
-	return wac;
+	return caw;
 }
 
-bool isBasicWord(const string& s, const vector<string>& bW)
+int keyword(const string& s)
 {
-	for (string o : bW) {
-		if (o == s) return true;
+	int i = beginsym, j = writesym;
+	int k = 0;
+	do {
+		k = (i + j) / 2;
+		if (s.compare(code[k]) <= 0) {
+			j = k - 1;
+		}
+		if (s.compare(code[k]) >= 0) {
+			i = k + 1;
+		}
+
+	} while (i <= j);
+	if (i - 1 > j) {
+		return k;
 	}
-	return false;
+	else {
+		return ident;
+	}
 }
 
-bool isOperatorOrBorder(const string& s, const vector<string>& ob)
+int delimiterAndOperator(const char& c)
 {
-	for (string o : ob) {
-		if (o == s) return true;
+	switch (c)
+	{
+	case '+':
+		return symbol::plus;
+	case '-':
+		return symbol::minus;
+	case '*':
+		return symbol::times;
+	case '/':
+		return symbol::slash;
+	case '=':
+		return symbol::eql;
+	case '#':
+		return symbol::neq;
+	case '<':
+		return symbol::lss;
+	case '>':
+		return symbol::gtr;
+	case ':':
+		return symbol::becomes - 1;
+	case '(':
+		return symbol::lparen;
+	case ')':
+		return symbol::rparen;
+	case ',':
+		return symbol::comma;
+	case ';':
+		return symbol::semicolon;
+	case '.':
+		return symbol::period;
+	default:
+		break;
 	}
-	return false;
+	return symbol::nul;
 }
 
 bool isNum(const string& str)
@@ -276,86 +295,81 @@ bool isIdent(const string& s) {
 }
 
 
-bool expression(vector<WordAndCode> wac, int& p, int& l)
+bool expression(vector<CodeAndWord> caw, size_t& p, int& l)
 {
-	if (wac[p].code == "minus" || wac[p].code == "plus") {
-		cout << wac[p].word << "   ";
+	if (caw[p].code == symbol::minus || caw[p].code == symbol::plus) {
+		cout << caw[p].word << "   ";
 		p++;
 	}
-	if (!term(wac, p, l))
+	if (!term(caw, p, l))
 		return false;
-	while (p < wac.size() && (wac[p].code == "minus" || wac[p].code == "plus")) {
-		cout << wac[p].word << " ";
+	while (p < caw.size() && (caw[p].code == symbol::minus || caw[p].code == symbol::plus)) {
+		cout << caw[p].word << " ";
 		p++;
-		if (!term(wac, p, l))
+		if (!term(caw, p, l))
 			return false;
 	}
-	if (p > 0 && p < wac.size() && (wac[p].code == "iden" || wac[p].code == "number") && (wac[p - 1].code == "iden" || wac[p - 1].code == "number")) {
-		cout << wac[p].word << endl;
+	if (p > 0 && p < caw.size() && (caw[p].code == ident || caw[p].code == number) && (caw[p - 1].code == ident || caw[p - 1].code == number)) {
+		cout << caw[p].word << endl;
 		cout << "缺乏运算符" << endl;
 		return false;
 	}
 	p++;
-	if (p > 0 && p < wac.size() && (wac[p].code == "iden" || wac[p].code == "number") && wac[p - 1].code == "rparen") {
-		cout << wac[p].word << endl;
+	if (p > 0 && p < caw.size() && (caw[p].code == ident || caw[p].code == number) && caw[p - 1].code == rparen) {
+		cout << caw[p].word << endl;
 		cout << "缺乏运算符" << endl;
 		return false;
 	}
 	p--;
-	if (p > 0 && p < wac.size() && wac[p].code == "lparen" && (wac[p - 1].code == "iden" || wac[p - 1].code == "number")) {
-		cout << wac[p].word << endl;
+	if (p > 0 && p < caw.size() && caw[p].code == lparen && (caw[p - 1].code == ident || caw[p - 1].code == number)) {
+		cout << caw[p].word << endl;
 		cout << "缺乏运算符" << endl;
 		return false;
 	}
-	if (p < wac.size() && wac[p].code == "rparen") {
+	if (p < caw.size() && caw[p].code == rparen) {
 		l--;
 		if (l < 0) {
-			cout << wac[p].word << endl;
+			cout << caw[p].word << endl;
 			cout << "多出一个右括号" << endl;
 			return false;
 		}
 		l++;
 	}
-	if (p > 0 && p < wac.size() && wac[p].code == "nul") {
+	if (p > 0 && p < caw.size() && caw[p].code == nul) {
 		cout << "非法字符" << endl;
 		return false;
 	}
 	return true;
 }
 
-bool term(vector<WordAndCode> wac, int& p, int& l) {
-	if (!factor(wac, p, l))
+bool term(vector<CodeAndWord> caw, size_t& p, int& l) {
+	if (!factor(caw, p, l))
 		return false;
-	while (p < wac.size() && (wac[p].code == "times" || wac[p].code == "slash"))
+	while (p < caw.size() && (caw[p].code == times || caw[p].code == slash))
 	{
-		cout << wac[p].word << " ";
+		cout << caw[p].word << " ";
 		p++;
-		if (!factor(wac, p, l))
+		if (!factor(caw, p, l))
 			return false;
 	}
 	return true;
 }
 
-bool factor(vector<WordAndCode> wac, int& p, int& l) {
-	while (p < wac.size()) {
-		if (wac[p].code == "iden") {
-			cout << wac[p].word << " ";
+bool factor(vector<CodeAndWord> caw, size_t& p, int& l) {
+	while (p < caw.size()) {
+		if (caw[p].code == ident || caw[p].code == number) {
+			cout << caw[p].word << " ";
 			p++;
 			return true;
 		}
-		else if (wac[p].code == "number") {
-			cout << wac[p].word << " ";
-			p++;
-			return true;
-		}
-		else if (wac[p].code == "lparen") {
-			cout << wac[p].word << " ";
+		else if (caw[p].code == lparen) {
+			cout << caw[p].word << " ";
 			p++;
 			l++;
-			if (!expression(wac, p, l))
+			if (!expression(caw, p, l))
 				return false;
-			if (p < wac.size() && wac[p].code == "rparen") {
-				cout << wac[p].word << " ";
+			if (p < caw.size() && caw[p].code == rparen) {
+				cout << caw[p].word << " ";
 				p++;
 				l--;
 				return true;
@@ -368,63 +382,59 @@ bool factor(vector<WordAndCode> wac, int& p, int& l) {
 		}
 		else
 		{
-			if (wac[p].code == "nul")
-				cout << wac[p].word << "非法字符" << endl;
-			else if (wac[p].code == "rparen") {
-				cout << wac[p].word << "()不能为空" << endl;
+			if (caw[p].code == nul)
+				cout << caw[p].word << "非法字符" << endl;
+			else if (caw[p].code == rparen) {
+				cout << caw[p].word << "()不能为空" << endl;
 			}
 			else
-				cout << wac[p].word << "缺乏标识符或数字" << endl;
+				cout << caw[p].word << "缺乏标识符或数字" << endl;
 			return false;
 		}
 	}
 	return true;
 }
 
-int stringToNum(string num)
+void compute(vector<CodeAndWord> caw)
 {
-	return atoi(num.c_str());
-}
-
-void compute(vector<WordAndCode> wac)
-{
-	while (!wac.empty()) {
+	while (!caw.empty()) {
 		int lp = -1, rp = -1;
-		for (int i = 0; i < wac.size(); i++) {
-			if (wac[i].code == "lparen")
+		for (int i = 0; i < caw.size(); i++) {
+			if (caw[i].code == lparen)
 				lp = i;
-			if (wac[i].code == "rparen") {
+			if (caw[i].code == rparen) {
 				rp = i;
 				break;
 			}
 		}
 		if (lp > -1 && rp > -1) {
-			int len = (int)rp - (int)lp;
-			vector<WordAndCode> temp;
+			int len = rp - lp;
+			vector<CodeAndWord> temp;
 			for (int i = 1; i < len; i++) {
-				temp.push_back(wac[lp + i]);
+				int j = lp + i;
+				temp.push_back(caw[j]);
 			}
-			wac.erase(wac.begin() + lp + 1, wac.begin() + rp + 1);
-			WordAndCode result = computeWithoutParen(temp);
-			wac[lp].code = result.code;
-			wac[lp].word = result.word;
-			if (result.code == "nul") {
-				wac.clear();
+			caw.erase(caw.begin() + lp + 1, caw.begin() + rp + 1);
+			CodeAndWord result = computeWithoutParen(temp);
+			caw[lp].code = result.code;
+			caw[lp].word = result.word;
+			if (result.code == nul) {
+				caw.clear();
 				cout << "表达式有误无法计算" << endl;
 			}
 		}
 		int flag = 0;
-		for (auto x : wac) {
-			if (x.code == "lparen") {
+		for (auto x : caw) {
+			if (x.code == lparen) {
 				flag = 1;
 				break;
 			}
 		}
 		if (flag == 0) {
-			WordAndCode result = computeWithoutParen(wac);
-			wac.clear();
-			if (result.code == "nul") {
-				wac.clear();
+			CodeAndWord result = computeWithoutParen(caw);
+			caw.clear();
+			if (result.code == nul) {
+				caw.clear();
 				cout << "表达式有误无法计算" << endl;
 			}
 			else {
@@ -434,39 +444,40 @@ void compute(vector<WordAndCode> wac)
 	}
 }
 
-WordAndCode computeWithoutParen(vector<WordAndCode> temp)
+CodeAndWord computeWithoutParen(vector<CodeAndWord> temp)
 {
-	vector<WordAndCode> op, num;
-	WordAndCode result;
-	result.code = "nul";
-	WordAndCode begin = temp.front();
-	if (begin.code == "minus") {
+	vector<CodeAndWord> op, num;
+	CodeAndWord result;
+	result.code = nul;
+	CodeAndWord begin = temp.front();
+	if (begin.code == symbol::minus) {
 		temp.erase(temp.begin());
 		begin = temp.front();
-		int x = stringToNum(begin.word);
+		int x = stoi(begin.word);
 		x = 0 - x;
 		temp[0].word = to_string(x);
 	}
 	for (auto t : temp) {
-		if (t.code == "number")
+		if (t.code == number)
 			num.push_back(t);
-		if (t.code == "plus" || t.code == "minus" || t.code == "times" || t.code == "slash")
+		if (t.code == symbol::plus || t.code == symbol::minus ||
+			t.code == symbol::times || t.code == symbol::slash)
 			op.push_back(t);
 	}
 	if (op.size() != num.size() - 1)
 		return result;
 	for (size_t i = 0; i < num.size() - 1; i++) {
-		if (!op.empty() && op[i].code == "times") {
-			int x = stringToNum(num[i].word);
-			int y = stringToNum(num[i + 1].word);
+		if (!op.empty() && op[i].code == symbol::times) {
+			int x = stoi(num[i].word);
+			int y = stoi(num[i + 1].word);
 			num.erase(num.begin() + i);
 			num[i].word = to_string(x * y);
 			op.erase(op.begin() + i);
 			i--;
 		}
-		else if (!op.empty() && op[i].code == "slash") {
-			int x = stringToNum(num[i].word);
-			int y = stringToNum(num[i + 1].word);
+		else if (!op.empty() && op[i].code == symbol::slash) {
+			int x = stoi(num[i].word);
+			int y = stoi(num[i + 1].word);
 			num.erase(num.begin() + i);
 			if (y == 0) {
 				return result;
@@ -476,18 +487,18 @@ WordAndCode computeWithoutParen(vector<WordAndCode> temp)
 			i--;
 		}
 	}
-	for (int i = 0; i < num.size() - 1; i++) {
-		if (!op.empty() && op[i].code == "plus") {
-			int x = stringToNum(num[i].word);
-			int y = stringToNum(num[i + 1].word);
+	for (size_t i = 0; i < num.size() - 1; i++) {
+		if (!op.empty() && op[i].code == symbol::plus) {
+			int x = stoi(num[i].word);
+			int y = stoi(num[i + 1].word);
 			num.erase(num.begin() + i);
 			num[i].word = to_string(x + y);
 			op.erase(op.begin() + i);
 			i--;
 		}
-		else if (!op.empty() && op[i].code == "minus") {
-			int x = stringToNum(num[i].word);
-			int y = stringToNum(num[i + 1].word);
+		else if (!op.empty() && op[i].code == symbol::minus) {
+			int x = stoi(num[i].word);
+			int y = stoi(num[i + 1].word);
 			num.erase(num.begin() + i);
 			num[i].word = to_string(x - y);
 			op.erase(op.begin() + i);
