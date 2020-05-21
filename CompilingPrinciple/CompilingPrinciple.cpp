@@ -193,13 +193,13 @@ vector<CodeAndWord> outputCodeAndWord(string infile, string outfile)
 					i++;
 					token[2] = '\0';
 					string t(token);
-					out << "(" << symbol[delimiterAndOperator(t[0]) + 1] << "," << token << ")" << endl;
-					caw.push_back({ delimiterAndOperator(t[0]) + 1, token });
+					out << "(" << symbol[delimiterAndOperator(t[0]) - 7] << "," << token << ")" << endl;
+					caw.push_back({ delimiterAndOperator(t[0]) - 7, token });
 				}
 				else {
 					token[1] = '\0';
 					string t(token);
-					if (delimiterAndOperator(t[0]) != becomes - 1) {
+					if (delimiterAndOperator(t[0]) != becomes + 7) {
 						out << "(" << symbol[delimiterAndOperator(t[0])] << "," << token << ")" << endl;
 						caw.push_back({ delimiterAndOperator(t[0]), token });
 					}
@@ -266,7 +266,7 @@ int delimiterAndOperator(const char& c)
 	case '>':
 		return symbol::gtr;
 	case ':':
-		return symbol::becomes - 1;
+		return symbol::becomes + 7;
 	case '(':
 		return symbol::lparen;
 	case ')':
