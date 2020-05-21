@@ -3,8 +3,20 @@ package com.elective.school.entity;
 import javax.persistence.Column;
 import javax.persistence.EmbeddedId;
 import javax.persistence.Entity;
+import javax.persistence.NamedStoredProcedureQueries;
+import javax.persistence.NamedStoredProcedureQuery;
+import javax.persistence.ParameterMode;
+import javax.persistence.StoredProcedureParameter;
 
 @Entity
+@NamedStoredProcedureQueries({
+		@NamedStoredProcedureQuery(name = "AveragePerTerm", procedureName = "AveragePerTerm", parameters = {
+				@StoredProcedureParameter(mode = ParameterMode.IN, name = "termId", type = Integer.class),
+				@StoredProcedureParameter(mode = ParameterMode.IN, name = "sno", type = String.class),
+				@StoredProcedureParameter(mode = ParameterMode.OUT, name = "ascore", type = Integer.class) }),
+		@NamedStoredProcedureQuery(name = "AverageAllTerm", procedureName = "AverageAllTerm", parameters = {
+				@StoredProcedureParameter(mode = ParameterMode.IN, name = "sno", type = String.class),
+				@StoredProcedureParameter(mode = ParameterMode.OUT, name = "ascore", type = Integer.class) }) })
 public class Elective {
 
 	@EmbeddedId
@@ -62,8 +74,8 @@ public class Elective {
 
 	@Override
 	public String toString() {
-		return "Elective [upk=" + upk + ", usualScore=" + usualScore + ", examScore=" + examScore
-				+ ", totalScore=" + totalScore + "]";
+		return "Elective [upk=" + upk + ", usualScore=" + usualScore + ", examScore=" + examScore + ", totalScore="
+				+ totalScore + "]";
 	}
 
 }

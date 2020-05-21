@@ -8,6 +8,7 @@ import org.springframework.data.domain.Example;
 import com.elective.school.dao.AcademyDao;
 import com.elective.school.dao.AdminDao;
 import com.elective.school.dao.CourseScheduleDao;
+import com.elective.school.dao.ElectiveDao;
 import com.elective.school.dao.StudentDao;
 import com.elective.school.dao.TeacherDao;
 import com.elective.school.dao.TermDao;
@@ -30,6 +31,8 @@ class SchoolApplicationTests {
 	TermDao termDao;
 	@Autowired
 	TeacherDao teacherDao;
+	@Autowired 
+	ElectiveDao electiveDao;
 
 	@Test
 	void contextLoads() {
@@ -63,9 +66,14 @@ class SchoolApplicationTests {
 	void testTeacherDao() {
 		System.out.print(teacherDao.findByName("马小红"));
 	}
-	
+
 	@Test
 	void testDao() {
 		System.out.print(courseScheduleDao.findByTermIdLikeTnoAndCno(1, "", "", "", ""));
+	}
+
+	@Test
+	void procedure() {
+		System.out.println(electiveDao.getAveragePerTerm(5, "1101"));
 	}
 }

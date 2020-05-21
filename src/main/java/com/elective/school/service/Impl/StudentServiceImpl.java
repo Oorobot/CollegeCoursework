@@ -84,10 +84,10 @@ public class StudentServiceImpl implements StudentService {
 		Map<String, Object> map = new HashMap<String, Object>();
 		if (!electiveDao.existsById(upk)) {
 			// 学生选课，课程人数+1
-//			CourseScheduleUPK csUPK = new CourseScheduleUPK(upk.getTermId(), upk.getCno(), upk.getTno());
-//			CourseSchedule cs = csDao.findById(csUPK).get();
-//			cs.setNumber(cs.getNumber() + 1);
-//			csDao.save(cs);
+			CourseScheduleUPK csUPK = new CourseScheduleUPK(upk.getTermId(), upk.getCno(), upk.getTno());
+			CourseSchedule cs = csDao.findById(csUPK).get();
+			cs.setNumber(cs.getNumber() + 1);
+			csDao.save(cs);
 			Elective elective = new Elective(upk, 0, 0, 0);
 			electiveDao.save(elective);
 			map.put("success", "选课成功");
@@ -139,11 +139,12 @@ public class StudentServiceImpl implements StudentService {
 	}
 
 	@Override
-	@Transactional(readOnly = true)
+	@Transactional
 	public Map<String, Object> score(String termId, String sno) {
 		Map<String, Object> map = new HashMap<String, Object>();
 		List<Elective> electives = new ArrayList<Elective>();
 		Integer id = Integer.valueOf(termId);
+		Map<Integer, Integer> termScore = new HashMap<Integer, Integer>();// 每个学期的平均成绩
 		if (id == -1) {
 			electives = electiveDao.findBySno(sno);
 			List<Integer> ids = new ArrayList<Integer>();
@@ -151,9 +152,17 @@ public class StudentServiceImpl implements StudentService {
 				ids.add(e.getUpk().getTermId());
 			List<Term> terms = termDao.findAllById(ids);
 			map.put("termsOfElectives", terms);
+			for (Integer i : ids) {
+				termScore.put(i, electiveDao.getAveragePerTerm(i, sno));
+			}
+			map.put("termScore", termScore);
+			map.put("AlltermScore", electiveDao.getAverageAllTerm(sno));
 
 		} else {
 			electives = electiveDao.findBySnoAndTermId(sno, id);
+			Integer score = electiveDao.getAveragePerTerm(id, sno);
+			if (score != null)
+				map.put("termScore", score);
 		}
 		Map<String, String> cName = new HashMap<String, String>();
 		Map<String, Integer> cCredit = new HashMap<String, Integer>();
@@ -167,5 +176,4 @@ public class StudentServiceImpl implements StudentService {
 		map.put("electives", electives);
 		return map;
 	}
-
 }

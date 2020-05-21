@@ -20,5 +20,4 @@ public interface StudentService {
 	public Map<String, Object> drop(String termId, String sno);
 
 	public Map<String, Object> score(String termId, String sno);
-
 }

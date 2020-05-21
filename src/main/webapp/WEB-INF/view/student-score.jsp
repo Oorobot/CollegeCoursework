@@ -80,6 +80,14 @@
 							</tr>
 						</c:forEach>
 					</tbody>
+					<tfoot>
+						<tr>
+							<td></td>
+							<td></td>
+							<td>平均成绩</td>
+							<td>${termScore }</td>
+						</tr>
+					</tfoot>
 				</table>
 			</c:if>
 		</c:if>
@@ -124,6 +132,13 @@
 										</tr>
 									</c:if>
 								</c:forEach>
+								<tr>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td>平均成绩</td>
+									<td>${termScore[te.id] }</td>
+								</tr>
 							</c:if>
 							<tr>
 								<td></td>
@@ -134,6 +149,15 @@
 							</tr>
 						</tbody>
 					</c:forEach>
+					<tfoot>
+						<tr>
+							<td></td>
+							<td></td>
+							<td></td>
+							<td>总平均成绩</td>
+							<td>${AlltermScore }</td>
+						</tr>
+					</tfoot>
 				</table>
 			</c:if>
 		</c:if>
