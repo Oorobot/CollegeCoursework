@@ -8,8 +8,8 @@ public class Constant {
 	public static Map<Integer, String> term_status = new HashMap<Integer, String>();
 	static {
 		Map<Integer, String> a = new HashMap<Integer, String>();
-		a.put(0, "学期开始，教师开设课程。");
-		a.put(1, "学生选课");
+		a.put(0, "学期开始");
+		a.put(1, "选课阶段");
 		a.put(2, "选课结束");
 		a.put(3, "教师评分");
 		a.put(4, "学期结束");

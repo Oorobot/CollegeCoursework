@@ -62,7 +62,7 @@
 					<c:forEach items="${terms }" var="t">
 						<tr>
 							<td>${t.term }</td>
-							<td>${term_status[t.status] }</td>
+							<td style="color: maroon;">${term_status[t.status] }</td>
 							<td>
 
 								<div class="btn-group">
@@ -73,7 +73,7 @@
 									</button>
 									<ul class="dropdown-menu">
 										<li><a
-											href="${pageContext.request.contextPath}/admin/term/${t.id }/0">新学期开始</a></li>
+											href="${pageContext.request.contextPath}/admin/term/${t.id }/0">学期开始</a></li>
 										<li role="separator" class="divider"></li>
 										<li><a
 											href="${pageContext.request.contextPath}/admin/term/${t.id }/1">选课阶段</a></li>
@@ -81,7 +81,7 @@
 											href="${pageContext.request.contextPath}/admin/term/${t.id }/2">选课结束</a></li>
 										<li role="separator" class="divider"></li>
 										<li><a
-											href="${pageContext.request.contextPath}/admin/term/${t.id }/3">录入成绩</a></li>
+											href="${pageContext.request.contextPath}/admin/term/${t.id }/3">教师评分</a></li>
 										<li><a
 											href="${pageContext.request.contextPath}/admin/term/${t.id }/4">学期结束</a></li>
 									</ul>
