@@ -12,22 +12,27 @@ int main()
 	outputCodeAndWord("./txt/case03.txt", "./txt/2-3.txt");
 	outputCodeAndWord("./txt/case04.txt", "./txt/2-4.txt");
 	outputCodeAndWord("./txt/case05.txt", "./txt/2-5.txt");*/
-	/*string str3 = "./txt/3-";
+	string str3 = "./txt/3-";
 	string str4 = "./txt/4-";
+	string str5 = "./txt/5-";
 	char j = '0';
 	for (int i = 0; i <= 9; i++) {
 		size_t p = 0;
 		int l = 0;
 		printf("\n");
-		vector<CodeAndWord> caw = outputCodeAndWord(str3 + j + ".txt", "./txt/output.txt");
+		vector<CodeAndWord> caw = outputCodeAndWord(str5 + j + ".txt", "./txt/output.txt");
 		j = j + 1;
 		if (expression(caw, p, l)) {
 			cout << "语法正确" << endl;
-			compute(caw);
+			//compute(caw);
+			vector<four> v_four = Intermediate(caw);
+			for (auto v : v_four) {
+				cout << "( " << code[v.code] << "," << v.opr1 << "," << v.opr2 << "," << v.res << " )" << endl;
+			}
 		}
 		else
 			cout << "语法错误" << endl;
-	}*/
+	}
 	/*for (int i = 0; i < symnum; i++) {
 		cout << symbol[i] << "  " << code[i] << endl;
 	}*/
@@ -421,6 +426,7 @@ void compute(vector<CodeAndWord> caw)
 			if (result.code == nul) {
 				caw.clear();
 				cout << "表达式有误无法计算" << endl;
+				return;
 			}
 		}
 		int flag = 0;
@@ -436,6 +442,7 @@ void compute(vector<CodeAndWord> caw)
 			if (result.code == nul) {
 				caw.clear();
 				cout << "表达式有误无法计算" << endl;
+				return;
 			}
 			else {
 				cout << result.word << endl;
@@ -448,7 +455,8 @@ CodeAndWord computeWithoutParen(vector<CodeAndWord> temp)
 {
 	vector<CodeAndWord> op, num;
 	CodeAndWord result;
-	result.code = nul;
+	result.code = nul;//nul：错误
+	//去除开头的 +/-
 	CodeAndWord begin = temp.front();
 	if (begin.code == symbol::minus) {
 		temp.erase(temp.begin());
@@ -457,6 +465,10 @@ CodeAndWord computeWithoutParen(vector<CodeAndWord> temp)
 		x = 0 - x;
 		temp[0].word = to_string(x);
 	}
+	if (begin.code == symbol::plus) {
+		temp.erase(temp.begin());
+	}
+	//操作数和操作符分隔
 	for (auto t : temp) {
 		if (t.code == number)
 			num.push_back(t);
@@ -467,44 +479,245 @@ CodeAndWord computeWithoutParen(vector<CodeAndWord> temp)
 	if (op.size() != num.size() - 1)
 		return result;
 	for (size_t i = 0; i < num.size() - 1; i++) {
-		if (!op.empty() && op[i].code == symbol::times) {
+		if (!op.empty() && (op[i].code == symbol::times || op[i].code == symbol::slash)) {
 			int x = stoi(num[i].word);
 			int y = stoi(num[i + 1].word);
 			num.erase(num.begin() + i);
-			num[i].word = to_string(x * y);
-			op.erase(op.begin() + i);
-			i--;
-		}
-		else if (!op.empty() && op[i].code == symbol::slash) {
-			int x = stoi(num[i].word);
-			int y = stoi(num[i + 1].word);
-			num.erase(num.begin() + i);
-			if (y == 0) {
-				return result;
+			if (op[i].code == symbol::times)
+				num[i].word = to_string(x * y);
+			else {
+				if (y == 0) {
+					return result;
+				}
+				num[i].word = to_string(x / y);
 			}
-			num[i].word = to_string(x / y);
 			op.erase(op.begin() + i);
 			i--;
 		}
 	}
 	for (size_t i = 0; i < num.size() - 1; i++) {
-		if (!op.empty() && op[i].code == symbol::plus) {
+		if (!op.empty() && (op[i].code == symbol::plus || op[i].code == symbol::minus)) {
 			int x = stoi(num[i].word);
 			int y = stoi(num[i + 1].word);
 			num.erase(num.begin() + i);
-			num[i].word = to_string(x + y);
-			op.erase(op.begin() + i);
-			i--;
-		}
-		else if (!op.empty() && op[i].code == symbol::minus) {
-			int x = stoi(num[i].word);
-			int y = stoi(num[i + 1].word);
-			num.erase(num.begin() + i);
-			num[i].word = to_string(x - y);
+			if (op[i].code == symbol::plus)
+				num[i].word = to_string(x + y);
+			else
+				num[i].word = to_string(x - y);
 			op.erase(op.begin() + i);
 			i--;
 		}
 	}
+	//不经过表达式的验证排除错误进行计算
+	/*int flag = -1;//flag = -1 去除开头的+/-号, flag = 0 计算乘除, flag = 1 计算加减
+	while (temp.size() > 1) {
+		for (size_t i = 0; i < temp.size() - 1; i++) {
+			if (flag == -1) {
+				if (temp[i].code == symbol::number)
+					break;
+				else if (temp[i].code == symbol::minus) {
+					if (temp.size() > i + 1 && temp[i + 1].code == number) {
+						temp.erase(temp.begin());
+						begin = temp.front();
+						int x = stoi(begin.word);
+						x = 0 - x;
+						temp[0].word = to_string(x);
+					}
+					else {
+						return result;
+					}
+				}
+				else if (begin.code == symbol::plus) {
+					temp.erase(temp.begin());
+					if (temp.size() <= i || temp[i].code != number) {
+						return result;
+					}
+				}
+			}
+			if (flag == 0 && (temp[i].code == symbol::times || temp[i].code == symbol::slash)) {
+				if (temp[i - 1].code == number && temp[i + 1].code == number) {
+					int x = stoi(temp[i - 1].word);
+					int y = stoi(temp[i + 1].word);
+					//乘法
+					if (temp[i].code == symbol::times) {
+						temp[i - 1].word = to_string(x * y);
+					}
+					//除法
+					else {
+						if (y == 0) {
+							return result;
+						}
+						temp[i - 1].word = to_string(x / y);
+					}
+					temp.erase(temp.begin() + i, temp.begin() + i + 1);
+					i = i - 2;
+				}
+				else {
+					return result;
+				}
+			}
+			if (flag == 1 && (temp[i].code == symbol::plus || temp[i].code == symbol::minus)) {
+				if (temp[i - 1].code == number && temp[i + 1].code == number) {
+					int x = stoi(temp[i - 1].word);
+					int y = stoi(temp[i + 1].word);
+					//加法
+					if (temp[i].code == symbol::plus) {
+						temp[i - 1].word = to_string(x + y);
+					}
+					//减法
+					else {
+						temp[i - 1].word = to_string(x - y);
+					}
+					temp.erase(temp.begin() + i, temp.begin() + i + 1);
+					i = i - 2;
+				}
+				else {
+					return result;
+				}
+			}
+		}
+		flag++;
+	}*/
+
 	result = num.front();
+	return result;
+}
+
+vector<four> Intermediate(vector<CodeAndWord> caw)
+{
+	vector<four> f;
+	while (!caw.empty()) {
+		int lp = -1, rp = -1;
+		for (int i = 0; i < caw.size(); i++) {
+			if (caw[i].code == lparen)
+				lp = i;
+			if (caw[i].code == rparen) {
+				rp = i;
+				break;
+			}
+		}
+		if (lp > -1 && rp > -1) {
+			int len = rp - lp;
+			vector<CodeAndWord> temp;
+			for (int i = 1; i < len; i++) {
+				int j = lp + i;
+				temp.push_back(caw[j]);
+			}
+			caw.erase(caw.begin() + lp + 1, caw.begin() + rp + 1);
+			CodeAndWord result = IntermediateWithoutParen(temp, f);
+			caw[lp].code = result.code;
+			caw[lp].word = result.word;
+			if (result.code == nul) {
+				caw.clear();
+				cout << "表达式有误无法计算" << endl;
+				return f;
+			}
+		}
+		int flag = 0;
+		for (auto x : caw) {
+			if (x.code == lparen) {
+				flag = 1;
+				break;
+			}
+		}
+		if (flag == 0) {
+			CodeAndWord result = IntermediateWithoutParen(caw,f);
+			caw.clear();
+			if (result.code == nul) {
+				caw.clear();
+				cout << "表达式有误无法计算" << endl;
+				return f;
+			}
+			else {
+				cout << "转换中间代码成功" << endl;
+				return f;
+			}
+		}
+	}
+
+	return f;
+}
+
+CodeAndWord IntermediateWithoutParen(vector<CodeAndWord> temp, vector<four>& f)
+{
+	//vector<CodeAndWord> op, num;
+	CodeAndWord result;
+	result.code = nul;//nul：错误
+	//计算
+	for (size_t i = 1; i < temp.size() - 1; i++) {
+		if (temp[i].code == symbol::times || temp[i].code == symbol::slash) {
+			four newfour;
+			int index = 0;
+			if (temp[i - 1].code == symbol::number) {
+				index = f.size() + 1;
+				string res = "t" + to_string(index);
+				f.push_back({ symbol::eql,temp[i - 1].word,"",res });
+				temp[i - 1].code = symbol::ident;
+				temp[i - 1].word = res;
+			}
+			if (temp[i + 1].code == symbol::number) {
+				index = f.size() + 1;
+				string res = "t" + to_string(index);
+				f.push_back({ symbol::eql,temp[i + 1].word,"",res });
+				temp[i + 1].code = symbol::ident;
+				temp[i + 1].word = res;
+			}		
+			newfour.code = temp[i].code;
+			newfour.opr1 = temp[i - 1].word;
+			newfour.opr2 = temp[i + 1].word;
+			index = f.size() + 1;
+			temp[i - 1].word = "t" + to_string(index);
+			newfour.res = temp[i - 1].word;
+			temp.erase(temp.begin() + i, temp.begin() + i + 2);
+			f.push_back(newfour);
+			i = i - 2;
+		}
+	}
+	//开头的 +/-
+	if (temp[0].code == symbol::minus || temp[0].code == symbol::plus) {
+		//若为数字，则赋值
+		if (temp[1].code == symbol::number) {
+			int index = f.size() + 1;
+			string res = "t" + to_string(index);
+			f.push_back({ symbol::eql,temp[1].word,"",res });
+			temp[1].code = symbol::ident;
+			temp[1].word = res;
+		}
+		int index = f.size() + 1;
+		string res = "t" + to_string(index);
+		f.push_back({ temp[0].code, "",temp[1].word, res });
+		temp[1].word = res;
+		temp.erase(temp.begin());
+	}
+	for (size_t i = 1; i < temp.size() - 1; i++) {
+		if (temp[i].code == symbol::plus || temp[i].code == symbol::minus) {
+			four newfour;
+			int index = 0;
+			if (temp[i - 1].code == symbol::number) {
+				index = f.size() + 1;
+				string res = "t" + to_string(index);
+				f.push_back({ symbol::eql,temp[i - 1].word,"",res });
+				temp[i - 1].code = symbol::ident;
+				temp[i - 1].word = res;
+			}
+			if (temp[i + 1].code == symbol::number) {
+				index = f.size() + 1;
+				string res = "t" + to_string(index);
+				f.push_back({ symbol::eql,temp[i + 1].word,"",res });
+				temp[i + 1].code = symbol::ident;
+				temp[i + 1].word = res;
+			}
+			newfour.code = temp[i].code;
+			newfour.opr1 = temp[i - 1].word;
+			newfour.opr2 = temp[i + 1].word;
+			index = f.size() + 1;
+			temp[i - 1].word = "t" + to_string(index);
+			newfour.res = temp[i - 1].word;
+			temp.erase(temp.begin() + i, temp.begin() + i + 2);
+			f.push_back(newfour);
+			i = i - 2;
+		}
+	}
+	result = temp.front();
 	return result;
 }

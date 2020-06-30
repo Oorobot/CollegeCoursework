@@ -40,6 +40,12 @@ struct CodeAndWord {
 	int code;
 	string word;
 };
+struct four {
+	int code;
+	string opr1;
+	string opr2;
+	string res;
+};
 
 void split(vector<string>& s, int start, int end);
 void trim(string& s);
@@ -57,5 +63,8 @@ bool expression(vector<CodeAndWord> wac, size_t& p, int& l);
 bool term(vector<CodeAndWord> wac, size_t& p, int& l);
 bool factor(vector<CodeAndWord> wac, size_t& p, int& l);
 
-void compute(vector<CodeAndWord> wac);
+void compute(vector<CodeAndWord> caw);
 CodeAndWord computeWithoutParen(vector<CodeAndWord> temp);
+
+vector<four> Intermediate(vector<CodeAndWord> caw);
+CodeAndWord IntermediateWithoutParen(vector<CodeAndWord> temp, vector<four>& f);
