@@ -1,0 +1,14 @@
+E:\Zerobe0\Documents\GitHub\SimpleTetris\bin\Debug\SimpleTetris.exe.config
+E:\Zerobe0\Documents\GitHub\SimpleTetris\bin\Debug\SimpleTetris.exe
+E:\Zerobe0\Documents\GitHub\SimpleTetris\bin\Debug\SimpleTetris.pdb
+E:\Zerobe0\Documents\GitHub\SimpleTetris\obj\Debug\SimpleTetris.csprojAssemblyReference.cache
+E:\Zerobe0\Documents\GitHub\SimpleTetris\obj\Debug\MyTetris.Double.resources
+E:\Zerobe0\Documents\GitHub\SimpleTetris\obj\Debug\SimpleTetris.GameExplanation.resources
+E:\Zerobe0\Documents\GitHub\SimpleTetris\obj\Debug\SimpleTetris.Main.resources
+E:\Zerobe0\Documents\GitHub\SimpleTetris\obj\Debug\SimpleTetris.Properties.Resources.resources
+E:\Zerobe0\Documents\GitHub\SimpleTetris\obj\Debug\SimpleTetris.Info.resources
+E:\Zerobe0\Documents\GitHub\SimpleTetris\obj\Debug\SimpleTetris.Single.resources
+E:\Zerobe0\Documents\GitHub\SimpleTetris\obj\Debug\SimpleTetris.csproj.GenerateResource.cache
+E:\Zerobe0\Documents\GitHub\SimpleTetris\obj\Debug\SimpleTetris.csproj.CoreCompileInputs.cache
+E:\Zerobe0\Documents\GitHub\SimpleTetris\obj\Debug\SimpleTetris.exe
+E:\Zerobe0\Documents\GitHub\SimpleTetris\obj\Debug\SimpleTetris.pdb
