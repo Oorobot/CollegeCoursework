@@ -1,5 +1,3 @@
-from typing import List
-
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.layers import Layer
@@ -44,7 +42,7 @@ class MeshConvolution(Layer):
         # Create neighborhoods of the original edge plus its neighbors.
         neighborhoods = np.concatenate(
             [np.arange(mesh.edges.shape[0])[:, None],
-             mesh.edge_to_neighbors], axis=1
+             mesh.edge_neighbors], axis=1
         )
 
         # Gather features into the shape (num_edges, 5, feature_size).
@@ -59,25 +57,3 @@ class MeshConvolution(Layer):
 
         # Add a fake batch dimension.
         return image[None, :, :, :]
-
-
-class ConvolutionSequence(Layer):
-    """A ConvolutionSequence is simply a number of sequential convolutions."""
-
-    convolutions: List[MeshConvolution]
-
-    def __init__(self, out_channels: int, num_convolutions: int):
-        Layer.__init__(self)
-
-        # Create num_convolutions MeshConvolution layers.
-        self.convolutions = [
-            MeshConvolution(out_channels) for _ in range(num_convolutions)
-        ]
-
-    def call(self, mesh: Mesh, features: tf.Tensor) -> tf.Tensor:
-        assert features_valid(mesh, features)
-
-        for convolution in self.convolutions:
-            features = convolution(mesh, features)
-
-        return features

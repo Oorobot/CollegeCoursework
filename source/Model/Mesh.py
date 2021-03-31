@@ -25,9 +25,9 @@ class VertexToEdge:
 
 
 class Mesh:
-    faces: np.ndarry
-    vertices: np.ndarry
-    edges: np.ndarry
+    faces: np.ndarray
+    vertices: np.ndarray
+    edges: np.ndarray
     edge_neighbors: np.ndarray
     edge_lookup: np.ndarray
     vertex_to_edges: List[Optional[Set[VertexToEdge]]]

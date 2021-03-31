@@ -61,13 +61,16 @@ def random_filename(suffix: str, prefix='temp_'):
     return f"{prefix}{uuid.uuid4()}.{suffix}"
 
 
-def save_obj(filename: str, vertices: np.ndarray, faces: np.ndarray) -> None:
-    with open(filename, 'w') as f:
-        mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
-        f.write(trimesh.exchange.obj.export_obj(mesh))
+class Obj:
+    @staticmethod
+    def save(filename: str, vertices: np.ndarray, faces: np.ndarray) -> None:
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        with open(filename, 'w') as f:
+            mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
+            f.write(trimesh.exchange.obj.export_obj(mesh))
 
-
-def load_obj(filename: str) -> Tuple[np.ndarray, np.ndarray]:
-    with open(filename, 'r') as f:
-        mesh = trimesh.exchange.obj.load_obj(f)
-    return mesh["vertices"], mesh["faces"]
+    @staticmethod
+    def load(filename: str) -> Tuple[np.ndarray, np.ndarray]:
+        with open(filename, 'r') as f:
+            mesh = trimesh.exchange.obj.load_obj(f)
+        return np.float32(mesh["vertices"]), mesh["faces"]
