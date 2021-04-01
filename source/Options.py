@@ -2,7 +2,8 @@ import json
 
 DEFAULTS = {
     # The point cloud that's fitted.
-    "point_cloud": "data/point_clouds/elephant.pwn",
+    # "point_cloud": "data/point_clouds/elephant.pwn",
+    "point_cloud": "bunny.txt",
     # The number of times remeshing/subdivision happens.
     "num_subdivisions": 6,
     # The number of iterations between each remeshing/subdivision.
@@ -16,7 +17,7 @@ DEFAULTS = {
     # An optional initial mesh.
     "initial_mesh": None,
     # The folder where the results are saved.
-    "save_location": "results",
+    "save_location": "results/bunny",
     # how often to run beamgap loss if -1 then no beam gap loss
     "beamgap_modulo": -1,
     # how often to save objs
