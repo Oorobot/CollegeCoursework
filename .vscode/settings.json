@@ -1,5 +1,5 @@
 {
-    "python.pythonPath": "D:\\ProgramData\\Anaconda3\\envs\\venv\\python.exe",
+    "python.pythonPath": "D:\\ProgramData\\Miniconda3\\envs\\gp\\python.exe",
     "cmake.configureOnOpen": false,
     "python.formatting.provider": "autopep8",
     "files.exclude": {
