@@ -8,32 +8,39 @@ import open3d.visualization.rendering as rendering
 
 basedir = os.path.dirname(os.path.realpath(__file__))
 
+# 训练参数
 Options = {
     # The point cloud that's fitted.
     "point_cloud": "bunny.txt",
+    # The folder where the results are saved.
+    "save_location": "results/bunny",
+    # An optional initial mesh.
+    "initial_mesh": None,
     # The number of times remeshing/subdivision happens.
+
     "num_subdivisions": 6,
     # The number of iterations between each remeshing/subdivision.
     "num_iterations": 1000,
     # Each subdivision multiplies the number of faces by this.
     "subdivision_multiplier": 1.5,
+    # The initial number of faces used for optimization.
+
+    "initial_num_faces": 1000,
     # The maximum number of faces that subdivision is allowed to yield.
     "max_num_faces": 10000,
-    # The initial number of faces used for optimization.
-    "initial_num_faces": 1000,
-    # An optional initial mesh.
-    "initial_mesh": None,
-    # The folder where the results are saved.
-    "save_location": "results/bunny",
     # how often to run beamgap loss if -1 then no beam gap loss
+
     "beamgap_modulo": -1,
     # how often to save objs
     "obj_save_modulo": 5,
+
     # range to lineralyinterp between when computing samples
     "min_num_samples": 10000,
     "max_num_samples": 16000,
     "pooling": [None, None, None, None, None, None],
 }
+
+# 光照、材质等设置
 
 
 class Settings:
@@ -196,6 +203,7 @@ class MainWindow:
     def __init__(self):
 
         self.settings = Settings()
+        self.options = None
 
         self.window = gui.Application.instance.create_window(
             "Point To Mesh", 1600, 800)
@@ -239,7 +247,9 @@ class MainWindow:
         point_cloud_button = gui.Button("...")
         point_cloud_button.horizontal_padding_em = 0.5
         point_cloud_button.vertical_padding_em = 0
+
         point_cloud_button.set_on_clicked(self._on_point_cloud_button)
+
         point_cloud_layout = gui.Horiz()
         point_cloud_layout.add_child(gui.Label("Point Cloud:"))
         point_cloud_layout.add_child(self._point_cloud)
@@ -249,70 +259,92 @@ class MainWindow:
 
         # 训练结果存放的文件夹
         self._result_folder = gui.TextEdit()
-        # result_folder_button = gui.Button("...")
-        # result_folder_button.horizontal_padding_em = 0.5
-        # result_folder_button.vertical_padding_em = 0
-        # result_folder_button.set_on_clicked(self._on_result_folder_button)
         result_folder_layout = gui.Horiz()
+
         result_folder_layout.add_child(gui.Label("Result file Folder:"))
         result_folder_layout.add_child(self._result_folder)
-        # result_folder_layout.add_child(result_folder_button)
 
         self.control_layout.add_child(result_folder_layout)
 
-        # 其他详细的参数设置
+        # 是否有初始网格
+        self.initial_mesh_status = gui.Checkbox("Add initial mesh model")
+        self.initial_mesh_status.set_on_checked(self._on_initial_mesh_status)
+        self._initial_mesh = gui.TextEdit()
+        initial_mesh_button = gui.Button("...")
+        initial_mesh_button.horizontal_padding_em = 0.5
+        initial_mesh_button.vertical_padding_em = 0
+        initial_mesh_button.set_on_clicked(self._on_initial_mesh_button)
+
+        self.initial_mesh_layout = gui.Horiz()
+        self.initial_mesh_layout.add_child(gui.Label("initial mesh:"))
+        self.initial_mesh_layout.add_child(self._initial_mesh)
+        self.initial_mesh_layout.add_child(initial_mesh_button)
+
+        self.initial_mesh_layout.visible = False
+
+        self.control_layout.add_child(self.initial_mesh_status)
+        self.control_layout.add_child(self.initial_mesh_layout)
+
+        # 详细的参数设置
         option_collapsablevert = gui.CollapsableVert(
-            "Setting", 0.33*em, gui.Margins(0.5*em, 0, 0.5*em, 0))
+            "Options", 0.33*em, gui.Margins(0.5*em, 0, 0.5*em, 0))
 
         option_collapsablevert.set_is_open(False)
 
-        num_epoch = gui.NumberEdit(gui.NumberEdit.INT)
-        num_epoch.int_value = 6
-        num_epoch.set_limits(1, 99)
+        self._num_epoch = gui.NumberEdit(gui.NumberEdit.INT)
+        self._num_epoch.int_value = Options["num_subdivisions"]
+        self._num_epoch.set_limits(1, 99)
 
-        num_iterations = gui.NumberEdit(gui.NumberEdit.INT)
-        num_iterations.int_value = 1000
-        num_iterations.set_limits(100, 10000)
+        self._num_iterations = gui.NumberEdit(gui.NumberEdit.INT)
+        self._num_iterations.int_value = Options["num_iterations"]
+        self._num_iterations.set_limits(100, 10000)
 
-        epoch_multiplier = gui.NumberEdit(gui.NumberEdit.DOUBLE)
-        epoch_multiplier.double_value = 1.5
-        epoch_multiplier.set_limits(1.1, 10.0)
+        self._epoch_multiplier = gui.NumberEdit(gui.NumberEdit.DOUBLE)
+        self._epoch_multiplier.double_value = Options["subdivision_multiplier"]
+        self._epoch_multiplier.set_limits(1.1, 10.0)
 
         train_parameters_layout = gui.Horiz()
         train_parameters_layout.add_child(gui.Label("number of epoch:"))
-        train_parameters_layout.add_child(num_epoch)
+        train_parameters_layout.add_child(self._num_epoch)
         train_parameters_layout.add_fixed(em)
         train_parameters_layout.add_child(gui.Label("number of iterations:"))
-        train_parameters_layout.add_child(num_iterations)
+        train_parameters_layout.add_child(self._num_iterations)
 
         option_collapsablevert.add_child(train_parameters_layout)
 
         train_parameters_layout_1 = gui.Horiz()
         train_parameters_layout_1.add_child(
             gui.Label("the multiple of face number of two adjacent epoch:"))
-        train_parameters_layout_1.add_child(epoch_multiplier)
+        train_parameters_layout_1.add_child(self._epoch_multiplier)
 
         option_collapsablevert.add_child(train_parameters_layout_1)
 
         # 与面的数量相关的参数
-        initial_faces_num = gui.NumberEdit(gui.NumberEdit.INT)
-        initial_faces_num.int_value = 1000
+        self._initial_faces_num = gui.NumberEdit(gui.NumberEdit.INT)
+        self._initial_faces_num.int_value = Options["initial_num_faces"]
+        self._initial_faces_num.set_limits(500, 5000)
 
-        max_faces_num = gui.NumberEdit(gui.NumberEdit.INT)
-        max_faces_num.int_value = 10000
+        self._max_faces_num = gui.NumberEdit(gui.NumberEdit.INT)
+        self._max_faces_num.int_value = Options["max_num_faces"]
+        self._max_faces_num.set_limits(10000, 1000000)
 
-        face_parameters_layout = gui.Horiz()
-        face_parameters_layout.add_child(gui.Label("The initial face number:"))
-        face_parameters_layout.add_child(initial_faces_num)
-        face_parameters_layout.add_fixed(em)
-        face_parameters_layout.add_child(gui.Label("Maximum number of faces:"))
-        face_parameters_layout.add_child(max_faces_num)
+        face_parameters_layout_0 = gui.Horiz()
+        face_parameters_layout_0.add_child(
+            gui.Label("The initial face number:"))
+        face_parameters_layout_0.add_child(self._initial_faces_num)
 
-        option_collapsablevert.add_child(face_parameters_layout)
+        face_parameters_layout_1 = gui.Horiz()
+        face_parameters_layout_1.add_child(
+            gui.Label("The maximum face number:"))
+        face_parameters_layout_1.add_child(self._max_faces_num)
+
+        option_collapsablevert.add_child(face_parameters_layout_0)
+        option_collapsablevert.add_child(face_parameters_layout_1)
 
         # 其他参数
-        save_obj = gui.NumberEdit(gui.NumberEdit.INT)
-        save_obj.int_value = 5
+        self._save_obj = gui.NumberEdit(gui.NumberEdit.INT)
+        self._save_obj.int_value = Options["obj_save_modulo"]
+        self._save_obj.set_limits(1, 100)
 
         # min_num_samples
         # max_num_samples
@@ -320,12 +352,13 @@ class MainWindow:
 
         other_parameters_layout = gui.Horiz()
         other_parameters_layout.add_child(gui.Label("how often to save:"))
-        other_parameters_layout.add_child(save_obj)
+        other_parameters_layout.add_child(self._save_obj)
 
         option_collapsablevert.add_child(other_parameters_layout)
 
         self.control_layout.add_child(option_collapsablevert)
 
+        # “训练”按钮
         Train_button_layout = gui.Horiz()
         Train_button = gui.Button("Train")
         Train_button.set_on_clicked(self._on_train)
@@ -338,6 +371,7 @@ class MainWindow:
         self.window.add_child(self._scene)
         self.window.add_child(self.control_layout)
 
+    # 布局设置
     def _on_layout(self, theme):
         r = self.window.content_rect
         self._scene.frame = r
@@ -349,7 +383,6 @@ class MainWindow:
             r.get_right() - width, r.y, width, height)
 
     # 菜单栏-载入文件
-
     def _on_menu_file(self):
         file_dialog = gui.FileDialog(
             gui.FileDialog.OPEN, "Choose File to open:", self.window.theme
@@ -389,7 +422,6 @@ class MainWindow:
         self.load(path)
 
     # 菜单栏-关于
-
     def _on_menu_about(self):
         pass
 
@@ -400,16 +432,12 @@ class MainWindow:
     # 添加点云文件按钮
     def _on_point_cloud_button(self):
         point_cloud_dialog = gui.FileDialog(
-            gui.FileDialog.OPEN, "Select point cloud file:", self.window.theme
-        )
+            gui.FileDialog.OPEN, "Select point cloud file:", self.window.theme)
         point_cloud_dialog.add_filter(
             ".txt .pwn", "fitted point cloud files(.txt .pwn)")
-        point_cloud_dialog.set_on_cancel(self._on_p_c_d_cancel)
+        point_cloud_dialog.set_on_cancel(self._dialog_cancel)
         point_cloud_dialog.set_on_done(self._on_p_c_d_done)
         self.window.show_dialog(point_cloud_dialog)
-
-    def _on_p_c_d_cancel(self):
-        self.window.close_dialog()
 
     def _on_p_c_d_done(self, path):
         self._point_cloud.text_value = path
@@ -418,21 +446,51 @@ class MainWindow:
         path_list.append("results")
         result_path = "/".join(path_list)
         self._result_folder.text_value = result_path
-
         point_cloud = o3d.io.read_point_cloud(path, format='xyz')
-
-        # mesh = o3d.io.read_triangle_mesh(path)
 
         self._scene.scene.clear_geometry()
 
-        self._scene.scene.add_geometry(filename, point_cloud, self.settings.material)
+        self._scene.scene.add_geometry(
+            filename, point_cloud, self.settings.material)
         bounds = point_cloud.get_axis_aligned_bounding_box()
         self._scene.setup_camera(60, bounds, bounds.get_center())
 
         self.window.close_dialog()
 
+    def _on_initial_mesh_status(self, is_checked):
+        if is_checked:
+            self.initial_mesh_layout.visible = True
+        else:
+            self.initial_mesh_layout.visible = False
+
+    # 添加初始网格文件
+    def _on_initial_mesh_button(self):
+        initial_mesh_dialog = gui.FileDialog(
+            gui.FileDialog.OPEN, "Select initial mesh file:", self.window.theme)
+        initial_mesh_dialog.add_filter(".obj", "Wavefront OBJ files (.obj)")
+        initial_mesh_dialog.set_on_cancel(self._dialog_cancel)
+        initial_mesh_dialog.set_on_done(self._i_m_d_done)
+        self.window.show_dialog(initial_mesh_dialog)
+
+    def _i_m_d_done(self, path):
+        self.window.close_dialog()
+        self._initial_mesh.text_value = path
+
     def _on_train(self):
-        pass
+        self.options = Options.copy()
+        self.options["num_subdivisions"] = self._num_epoch.int_value
+        self.options["num_iterations"] = self._num_iterations.int_value
+        self.options["subdivision_multiplier"] = self._epoch_multiplier.double_value
+        self.options["initial_num_faces"] = self._initial_faces_num.int_value
+        self.options["max_num_faces"] = self._max_faces_num.int_value
+        self.options["obj_save_modulo"] = self._save_obj.int_value
+        if len(self._point_cloud.text_value) != 0:
+            self.options["point_cloud"] = self._point_cloud.text_value
+            self.options["save_location"] = self._result_folder.text_value
+        if self.initial_mesh_status.checked and len(self._initial_mesh.text_value) != 0:
+            self.options["initial_mesh"] = self._initial_mesh.text_value
+
+        print(self.options)
 
     def load(self, path):
         self._scene.scene.clear_geometry()
