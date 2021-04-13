@@ -1,12 +1,18 @@
-import os.path
+import os
+import time
+
 import numpy as np
-
-
 import open3d as o3d
 import open3d.visualization.gui as gui
 import open3d.visualization.rendering as rendering
+import tensorflow as tf
+import Tools
+import trimesh
 
-basedir = os.path.dirname(os.path.realpath(__file__))
+from .settings import Settings
+from model.Loss import ChamferLossLayer, ConvergenceDetector
+from model.Mesh import Mesh
+from model.PointToMeshModel import PointToMeshModel, get_vertex_features
 
 # 训练参数
 Options = {
@@ -39,160 +45,6 @@ Options = {
     "max_num_samples": 16000,
     "pooling": [None, None, None, None, None, None],
 }
-
-# 光照、材质等设置
-
-
-class Settings:
-    UNLIT = "defaultUnlit"
-    LIT = "defaultLit"
-    NORMALS = "normals"
-    DEPTH = "depth"
-
-    DEFAULT_PROFILE_NAME = "Bright day with sun at +Y [default]"
-    POINT_CLOUD_PROFILE_NAME = "Cloudy day (no direct sun)"
-    CUSTOM_PROFILE_NAME = "Custom"
-    LIGHTING_PROFILES = {
-        DEFAULT_PROFILE_NAME: {
-            "ibl_intensity": 45000,
-            "sun_intensity": 45000,
-            "sun_dir": [0.577, -0.577, -0.577],
-            # "ibl_rotation":
-            "use_ibl": True,
-            "use_sun": True,
-        },
-        "Bright day with sun at -Y": {
-            "ibl_intensity": 45000,
-            "sun_intensity": 45000,
-            "sun_dir": [0.577, 0.577, 0.577],
-            # "ibl_rotation":
-            "use_ibl": True,
-            "use_sun": True,
-        },
-        "Bright day with sun at +Z": {
-            "ibl_intensity": 45000,
-            "sun_intensity": 45000,
-            "sun_dir": [0.577, 0.577, -0.577],
-            # "ibl_rotation":
-            "use_ibl": True,
-            "use_sun": True,
-        },
-        "Less Bright day with sun at +Y": {
-            "ibl_intensity": 35000,
-            "sun_intensity": 50000,
-            "sun_dir": [0.577, -0.577, -0.577],
-            # "ibl_rotation":
-            "use_ibl": True,
-            "use_sun": True,
-        },
-        "Less Bright day with sun at -Y": {
-            "ibl_intensity": 35000,
-            "sun_intensity": 50000,
-            "sun_dir": [0.577, 0.577, 0.577],
-            # "ibl_rotation":
-            "use_ibl": True,
-            "use_sun": True,
-        },
-        "Less Bright day with sun at +Z": {
-            "ibl_intensity": 35000,
-            "sun_intensity": 50000,
-            "sun_dir": [0.577, 0.577, -0.577],
-            # "ibl_rotation":
-            "use_ibl": True,
-            "use_sun": True,
-        },
-        POINT_CLOUD_PROFILE_NAME: {
-            "ibl_intensity": 60000,
-            "sun_intensity": 50000,
-            "use_ibl": True,
-            "use_sun": False,
-            # "ibl_rotation":
-        },
-    }
-
-    DEFAULT_MATERIAL_NAME = "Polished ceramic [default]"
-    PREFAB = {
-        DEFAULT_MATERIAL_NAME: {
-            "metallic": 0.0,
-            "roughness": 0.7,
-            "reflectance": 0.5,
-            "clearcoat": 0.2,
-            "clearcoat_roughness": 0.2,
-            "anisotropy": 0.0
-        },
-        "Metal (rougher)": {
-            "metallic": 1.0,
-            "roughness": 0.5,
-            "reflectance": 0.9,
-            "clearcoat": 0.0,
-            "clearcoat_roughness": 0.0,
-            "anisotropy": 0.0
-        },
-        "Metal (smoother)": {
-            "metallic": 1.0,
-            "roughness": 0.3,
-            "reflectance": 0.9,
-            "clearcoat": 0.0,
-            "clearcoat_roughness": 0.0,
-            "anisotropy": 0.0
-        },
-        "Plastic": {
-            "metallic": 0.0,
-            "roughness": 0.5,
-            "reflectance": 0.5,
-            "clearcoat": 0.5,
-            "clearcoat_roughness": 0.2,
-            "anisotropy": 0.0
-        },
-        "Glazed ceramic": {
-            "metallic": 0.0,
-            "roughness": 0.5,
-            "reflectance": 0.9,
-            "clearcoat": 1.0,
-            "clearcoat_roughness": 0.1,
-            "anisotropy": 0.0
-        },
-        "Clay": {
-            "metallic": 0.0,
-            "roughness": 1.0,
-            "reflectance": 0.5,
-            "clearcoat": 0.1,
-            "clearcoat_roughness": 0.287,
-            "anisotropy": 0.0
-        },
-    }
-
-    def __init__(self):
-        self.mouse_model = gui.SceneWidget.Controls.ROTATE_CAMERA
-        self.bg_color = gui.Color(1, 1, 1)
-        self.show_skybox = False
-        self.show_axes = False
-        self.use_ibl = True
-        self.use_sun = True
-        self.new_ibl_name = None  # clear to None after loading
-        self.ibl_intensity = 45000
-        self.sun_intensity = 45000
-        self.sun_dir = [0.577, -0.577, -0.577]
-        self.sun_color = gui.Color(1, 1, 1)
-
-        self.apply_material = True  # clear to False after processing
-        self._materials = {
-            Settings.LIT: rendering.Material(),
-            Settings.UNLIT: rendering.Material(),
-            Settings.NORMALS: rendering.Material(),
-            Settings.DEPTH: rendering.Material()
-        }
-        self._materials[Settings.LIT].base_color = [0.9, 0.9, 0.9, 1.0]
-        self._materials[Settings.LIT].shader = Settings.LIT
-        self._materials[Settings.UNLIT].base_color = [0.9, 0.9, 0.9, 1.0]
-        self._materials[Settings.UNLIT].shader = Settings.UNLIT
-        self._materials[Settings.NORMALS].shader = Settings.NORMALS
-        self._materials[Settings.DEPTH].shader = Settings.DEPTH
-
-        # Conveniently, assigning from self._materials[...] assigns a reference,
-        # not a copy, so if we change the property of a material, then switch
-        # to another one, then come back, the old setting will still be there.
-        self.material = self._materials[Settings.LIT]
 
 
 class MainWindow:
@@ -539,6 +391,122 @@ class MainWindow:
                 self._scene.setup_camera(60, bounds, bounds.get_center())
             except Exception as e:
                 print(e)
+
+    def train_model(self):
+
+        point_cloud = np.loadtxt(
+            fname=self.options["point_cloud"], usecols=(0, 1, 2))
+        point_cloud_tf = tf.convert_to_tensor(point_cloud, dtype=tf.float32)
+
+        def save_mesh(filename, vertices, faces):
+            Tools.Obj.save(os.path.join(
+                self.options["save_location"], filename), vertices, faces)
+
+        # 初始网格
+        if self.options["initial_mesh"]:
+            remeshed_vertices, remeshed_faces = Tools.Obj.load(
+                self.options["initial_mesh"])
+        else:
+            convex_hull = trimesh.convex.convex_hull(point_cloud)
+            remeshed_vertices, remeshed_faces = Tools.remesh(
+                convex_hull.vertices, convex_hull.faces, self.options["initial_num_faces"]
+            )
+        save_mesh("tem_initial_mesh.obj", remeshed_vertices, remeshed_faces)
+
+        # 模型
+        chamfer_loss = ChamferLossLayer()
+        optimizer = tf.keras.optimizers.Adam(learning_rate=0.00005)
+        num_subdivisions = self.options["num_subdivisions"]
+        new_vertices = None
+
+        for subdivision_level in range(num_subdivisions):
+            chamfer_convergence = ConvergenceDetector()
+
+            if subdivision_level != 0:
+                if new_vertices is None:
+                    raise Exception("Could not find vertices to subdivide.")
+                else:
+                    new_face_num = min(
+                        self.options["max_num_faces"], self.options["subdivision_multiplier"] *
+                        remeshed_faces.shape[0]
+                    )
+                print(
+                    f"Remeshing to {int(new_face_num)} faces"
+                )
+                remeshed_vertices, remeshed_faces = Tools.remesh(
+                    new_vertices.numpy(), remeshed_faces, new_face_num
+                )
+            else:
+                print(
+                    f"Starting with {remeshed_faces.shape[0]} faces"
+                )
+            mesh = Mesh(remeshed_vertices, remeshed_faces)
+            model = PointToMeshModel(
+                mesh.edge.shape[0], self.options["pooling"])
+
+            # 随机特征值
+            in_features = tf.random.uniform((mesh.edge.shape[0], 6), -0.5, 0.5)
+            old_vertices = tf.convert_to_tensor(
+                remeshed_vertices, dtype=tf.float32)
+            num_iterations = self.options["num_iterations"]
+            for iteration in range(num_iterations):
+                iteration_start_time = time.time()
+                with tf.GradientTape() as tape:
+                    # 获取新的点位置
+                    features = model(mesh, in_features)
+                    new_vertices = old_vertices + \
+                        get_vertex_features(mesh, features)
+                    #计算loss值
+                    samples_num = int(
+                        self.options["min_num_samples"]
+                        + (iteration / self.options["num_iterations"])
+                        * (self.options["max_num_samples"] - self.options["min_num_samples"])
+                    )
+                    surface_sample = mesh.surface_sample(
+                        new_vertices, samples_num
+                    )
+                    loss = chamfer_loss(
+                        surface_sample[0], point_cloud_tf, samples_num
+                    )
+                    converged = chamfer_convergence.step(loss.numpy().item())
+
+                gradients = tape.gradient(loss, model.trainable_variables)
+                optimizer.apply_gradients(
+                    zip(gradients, model.trainable_variables))
+
+                # 保存模型
+                save_obj = self.options["obj_save_modulo"]
+                if iteration % save_obj == 0 or converged or iteration == num_iterations - 1:
+                    save_mesh(
+                        f"tmp_{str(subdivision_level).zfill(2)}_{str(iteration).zfill(3)}.obj",
+                        new_vertices.numpy(),
+                        remeshed_faces,
+                    )
+
+                message = [
+                    f"{subdivision_level+1}/{num_subdivisions} & {iteration+1}/{num_iterations}",
+                    f"Chamfer Loss:{loss.numpy().item()}",
+                    f"Time:{time.time()-iteration_start_time}"
+                ]
+                print(" ".join(message))
+
+                # 画布替换
+                o3d_mesh = o3d.geometry.TriangleMesh()
+                o3d_mesh.vertices = o3d.utility.Vector3dVector(
+                    new_vertices.numpy())
+                o3d_mesh.triangles = o3d.utility.Vector3iVector(remeshed_faces)
+
+                self._scene.scene.clear_geometry()
+                self._scene.scene.add_geometry("__model__", o3d_mesh,
+                                               self.settings.material)
+                bounds = o3d_mesh.get_axis_aligned_bounding_box()
+                self._scene.setup_camera(60, bounds, bounds.get_center())
+
+                if converged:
+                    print(
+                        f"Converged at iteration {iteration + 1}/{num_iterations}."
+                    )
+                    break
 
 
 def main():
