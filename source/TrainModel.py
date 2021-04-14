@@ -10,11 +10,11 @@ from colorama import Back, Fore, Style
 from tensorflow.python.keras.backend import dtype
 
 import Tools
-from model.Loss import (BeamGapLossLayer, ChamferLossLayer,
-                        ConvergenceDetector, discrete_project)
-from model.Mesh import Mesh
-from model.PointToMeshModel import PointToMeshModel, get_vertex_features
-from Options import load_options
+from .model.Loss import (BeamGapLossLayer, ChamferLossLayer,
+                         ConvergenceDetector, discrete_project)
+from .model.Mesh import Mesh
+from .model.PointToMeshModel import PointToMeshModel, get_vertex_features
+from .Options import load_options
 
 # This makes Colorama (terminal colors) work on Windows.
 colorama.init()

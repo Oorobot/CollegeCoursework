@@ -6,13 +6,15 @@ import open3d as o3d
 import open3d.visualization.gui as gui
 import open3d.visualization.rendering as rendering
 import tensorflow as tf
-import Tools
 import trimesh
+import threading
+import queue
 
+from ..Tools import remesh, Obj
 from .settings import Settings
-from model.Loss import ChamferLossLayer, ConvergenceDetector
-from model.Mesh import Mesh
-from model.PointToMeshModel import PointToMeshModel, get_vertex_features
+from ..model.Loss import ChamferLossLayer, ConvergenceDetector
+from ..model.Mesh import Mesh
+from ..model.PointToMeshModel import PointToMeshModel, get_vertex_features
 
 # 训练参数
 Options = {
@@ -56,6 +58,7 @@ class MainWindow:
 
         self.settings = Settings()
         self.options = None
+        self.geometry = None
 
         self.window = gui.Application.instance.create_window(
             "Point To Mesh", 1600, 800)
@@ -341,8 +344,8 @@ class MainWindow:
             self.options["save_location"] = self._result_folder.text_value
         if self.initial_mesh_status.checked and len(self._initial_mesh.text_value) != 0:
             self.options["initial_mesh"] = self._initial_mesh.text_value
-
         print(self.options)
+        threading.Thread(target=self.train_model).start()
 
     def load(self, path):
         self._scene.scene.clear_geometry()
@@ -393,25 +396,29 @@ class MainWindow:
                 print(e)
 
     def train_model(self):
+        # GPU.
+        physical_devices = tf.config.list_physical_devices("GPU")
+        if len(physical_devices) > 0:
+            tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
         point_cloud = np.loadtxt(
             fname=self.options["point_cloud"], usecols=(0, 1, 2))
         point_cloud_tf = tf.convert_to_tensor(point_cloud, dtype=tf.float32)
 
         def save_mesh(filename, vertices, faces):
-            Tools.Obj.save(os.path.join(
+            Obj.save(os.path.join(
                 self.options["save_location"], filename), vertices, faces)
 
         # 初始网格
         if self.options["initial_mesh"]:
-            remeshed_vertices, remeshed_faces = Tools.Obj.load(
+            remeshed_vertices, remeshed_faces = Obj.load(
                 self.options["initial_mesh"])
         else:
             convex_hull = trimesh.convex.convex_hull(point_cloud)
-            remeshed_vertices, remeshed_faces = Tools.remesh(
+            remeshed_vertices, remeshed_faces = remesh(
                 convex_hull.vertices, convex_hull.faces, self.options["initial_num_faces"]
             )
-        save_mesh("tem_initial_mesh.obj", remeshed_vertices, remeshed_faces)
+        save_mesh("tmp_initial_mesh.obj", remeshed_vertices, remeshed_faces)
 
         # 模型
         chamfer_loss = ChamferLossLayer()
@@ -433,7 +440,7 @@ class MainWindow:
                 print(
                     f"Remeshing to {int(new_face_num)} faces"
                 )
-                remeshed_vertices, remeshed_faces = Tools.remesh(
+                remeshed_vertices, remeshed_faces = remesh(
                     new_vertices.numpy(), remeshed_faces, new_face_num
                 )
             else:
@@ -442,10 +449,12 @@ class MainWindow:
                 )
             mesh = Mesh(remeshed_vertices, remeshed_faces)
             model = PointToMeshModel(
-                mesh.edge.shape[0], self.options["pooling"])
+                mesh.edges.shape[0], self.options["pooling"])
 
             # 随机特征值
-            in_features = tf.random.uniform((mesh.edge.shape[0], 6), -0.5, 0.5)
+            in_features = tf.random.uniform(
+                (mesh.edges.shape[0], 6), -0.5, 0.5)
+
             old_vertices = tf.convert_to_tensor(
                 remeshed_vertices, dtype=tf.float32)
             num_iterations = self.options["num_iterations"]
@@ -462,7 +471,7 @@ class MainWindow:
                         + (iteration / self.options["num_iterations"])
                         * (self.options["max_num_samples"] - self.options["min_num_samples"])
                     )
-                    surface_sample = mesh.surface_sample(
+                    surface_sample = mesh.sample_surface(
                         new_vertices, samples_num
                     )
                     loss = chamfer_loss(
@@ -496,17 +505,22 @@ class MainWindow:
                     new_vertices.numpy())
                 o3d_mesh.triangles = o3d.utility.Vector3iVector(remeshed_faces)
 
-                self._scene.scene.clear_geometry()
-                self._scene.scene.add_geometry("__model__", o3d_mesh,
-                                               self.settings.material)
-                bounds = o3d_mesh.get_axis_aligned_bounding_box()
-                self._scene.setup_camera(60, bounds, bounds.get_center())
+                self.geometry = o3d_mesh
+                gui.Application.instance.post_to_main_thread(
+                    self.window, self.on_train_change_scene)
 
                 if converged:
                     print(
                         f"Converged at iteration {iteration + 1}/{num_iterations}."
                     )
                     break
+
+    def on_train_change_scene(self):
+        self._scene.scene.clear_geometry()
+        self._scene.scene.add_geometry("__model__", self.geometry,
+                                       self.settings.material)
+        bounds = self.geometry.get_axis_aligned_bounding_box()
+        self._scene.setup_camera(60, bounds, bounds.get_center())
 
 
 def main():
