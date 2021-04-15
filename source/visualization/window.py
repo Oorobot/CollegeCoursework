@@ -8,7 +8,6 @@ import open3d.visualization.rendering as rendering
 import tensorflow as tf
 import trimesh
 import threading
-import queue
 
 from ..Tools import remesh, Obj
 from .settings import Settings
@@ -18,31 +17,31 @@ from ..model.PointToMeshModel import PointToMeshModel, get_vertex_features
 
 # 训练参数
 Options = {
-    # The point cloud that's fitted.
-    "point_cloud": "bunny.txt",
-    # The folder where the results are saved.
-    "save_location": "results/bunny",
-    # An optional initial mesh.
+    # 点云文件
+    "point_cloud": None,
+    # 结果保存位置
+    "save_location": None,
+    # 初始网格模型（可选）
     "initial_mesh": None,
-    # The number of times remeshing/subdivision happens.
 
+    # 训练轮次 或 网格细分等级
     "num_subdivisions": 6,
-    # The number of iterations between each remeshing/subdivision.
+    # 每轮或每个等级迭代次数
     "num_iterations": 1000,
-    # Each subdivision multiplies the number of faces by this.
+    # 相邻训练轮次之间网格面的倍数
     "subdivision_multiplier": 1.5,
-    # The initial number of faces used for optimization.
 
+    # 初始网格的面数
     "initial_num_faces": 1000,
-    # The maximum number of faces that subdivision is allowed to yield.
+    # 最大的网格模型面数
     "max_num_faces": 10000,
-    # how often to run beamgap loss if -1 then no beam gap loss
 
+    # 使用beamgap的频率（使用次数/每轮的迭代数），-1表示不使用
     "beamgap_modulo": -1,
-    # how often to save objs
+    # 保存结果的频率（保存次数/每轮迭代数）
     "obj_save_modulo": 5,
 
-    # range to lineralyinterp between when computing samples
+    # 对模型进行采样的数量（与当前迭代数有关、线性关系）
     "min_num_samples": 10000,
     "max_num_samples": 16000,
     "pooling": [None, None, None, None, None, None],
@@ -55,10 +54,11 @@ class MainWindow:
     MENU_ABOUT = 21
 
     def __init__(self):
-
         self.settings = Settings()
         self.options = None
         self.geometry = None
+        self.message = None
+        self.train_status = False
 
         self.window = gui.Application.instance.create_window(
             "Point To Mesh", 1600, 800)
@@ -93,9 +93,13 @@ class MainWindow:
             100000)
         self._scene.scene.scene.enable_sun_light(True)
 
-        # 设置参数部分
+        # 训练模型参数设置
         self.control_layout = gui.Vert(
             0, gui.Margins(em*0.5, em*0.5, em*0.5, em*0.5))
+
+        option_collapsablevert = gui.CollapsableVert(
+            "Train Model", 0, gui.Margins(0.5*em, 0, 0.5*em, 0))
+        option_collapsablevert.set_is_open(False)
 
         # 选择使用的点云文件
         self._point_cloud = gui.TextEdit()
@@ -110,7 +114,7 @@ class MainWindow:
         point_cloud_layout.add_child(self._point_cloud)
         point_cloud_layout.add_child(point_cloud_button)
 
-        self.control_layout.add_child(point_cloud_layout)
+        option_collapsablevert.add_child(point_cloud_layout)
 
         # 训练结果存放的文件夹
         self._result_folder = gui.TextEdit()
@@ -119,7 +123,7 @@ class MainWindow:
         result_folder_layout.add_child(gui.Label("Result file Folder:"))
         result_folder_layout.add_child(self._result_folder)
 
-        self.control_layout.add_child(result_folder_layout)
+        option_collapsablevert.add_child(result_folder_layout)
 
         # 是否有初始网格
         self.initial_mesh_status = gui.Checkbox("Add initial mesh model")
@@ -137,14 +141,10 @@ class MainWindow:
 
         self.initial_mesh_layout.visible = False
 
-        self.control_layout.add_child(self.initial_mesh_status)
-        self.control_layout.add_child(self.initial_mesh_layout)
+        option_collapsablevert.add_child(self.initial_mesh_status)
+        option_collapsablevert.add_child(self.initial_mesh_layout)
 
         # 详细的参数设置
-        option_collapsablevert = gui.CollapsableVert(
-            "Options", 0.33*em, gui.Margins(0.5*em, 0, 0.5*em, 0))
-
-        option_collapsablevert.set_is_open(False)
 
         self._num_epoch = gui.NumberEdit(gui.NumberEdit.INT)
         self._num_epoch.int_value = Options["num_subdivisions"]
@@ -215,16 +215,26 @@ class MainWindow:
 
         # “训练”按钮
         Train_button_layout = gui.Horiz()
-        Train_button = gui.Button("Train")
-        Train_button.set_on_clicked(self._on_train)
+        self.Train_button = gui.Button("Train")
+        self.Train_button.set_on_clicked(self._on_train)
+        self.stop_button = gui.Button("Stop")
+        self.stop_button.visible = False
+        self.stop_button.set_on_clicked(self._on_stop)
         Train_button_layout.add_stretch()
-        Train_button_layout.add_child(Train_button)
+        Train_button_layout.add_child(self.stop_button)
+        Train_button_layout.add_child(self.Train_button)
 
         self.control_layout.add_child(Train_button_layout)
+
+        # 消息框
+        self.message_layout = gui.Horiz(em, gui.Margins(em, 0, em, 0))
+        self.message_label = gui.Label("Welcome.")
+        self.message_layout.add_child(self.message_label)
 
         self.window.set_on_layout(self._on_layout)
         self.window.add_child(self._scene)
         self.window.add_child(self.control_layout)
+        self.window.add_child(self.message_layout)
 
     # 布局设置
     def _on_layout(self, theme):
@@ -236,8 +246,14 @@ class MainWindow:
                      self.control_layout.calc_preferred_size(theme).height)
         self.control_layout.frame = gui.Rect(
             r.get_right() - width, r.y, width, height)
+        self.message_layout.frame = gui.Rect(
+            r.x, r.y+r.height -
+            self.message_layout.calc_preferred_size(theme).height,
+            r.width, self.message_layout.calc_preferred_size(theme).height
+        )
 
     # 菜单栏-载入文件
+
     def _on_menu_file(self):
         file_dialog = gui.FileDialog(
             gui.FileDialog.OPEN, "Choose File to open:", self.window.theme
@@ -275,10 +291,12 @@ class MainWindow:
     def _file_dialog_done(self, path):
         self.window.close_dialog()
         self.load(path)
+        self.message_label.text = "file: " + path
 
     # 菜单栏-关于
     def _on_menu_about(self):
-        pass
+        self.window.show_message_box(
+            "About", "Point2Mesh Model Visualization!!!")
 
     # 菜单栏-退出
     def _on_menu_quit(self):
@@ -311,6 +329,7 @@ class MainWindow:
         self._scene.setup_camera(60, bounds, bounds.get_center())
 
         self.window.close_dialog()
+        self.message_label.text = "showing point cloud."
 
     def _on_initial_mesh_status(self, is_checked):
         if is_checked:
@@ -345,7 +364,21 @@ class MainWindow:
         if self.initial_mesh_status.checked and len(self._initial_mesh.text_value) != 0:
             self.options["initial_mesh"] = self._initial_mesh.text_value
         print(self.options)
-        threading.Thread(target=self.train_model).start()
+
+        if self._check_train_parameters():
+            self.train_status = True
+            self.stop_button.visible = True
+            self.Train_button.enabled = False
+            threading.Thread(target=self.train_model).start()
+
+    def _on_stop(self):
+        if self.train_status:
+            self.stop_button.text = "Continue"
+            self.train_status = False
+        else:
+            self.stop_button.text = "Stop"
+            self.train_status = True
+            self.message_label.text = "recovery the training."
 
     def load(self, path):
         self._scene.scene.clear_geometry()
@@ -437,16 +470,21 @@ class MainWindow:
                         self.options["max_num_faces"], self.options["subdivision_multiplier"] *
                         remeshed_faces.shape[0]
                     )
-                print(
-                    f"Remeshing to {int(new_face_num)} faces"
-                )
+
+                self.message = f"Remeshing to {int(new_face_num)} faces"
+                print(self.message)
+                gui.Application.instance.post_to_main_thread(
+                    self.window, self._message_label_change)
+
                 remeshed_vertices, remeshed_faces = remesh(
                     new_vertices.numpy(), remeshed_faces, new_face_num
                 )
             else:
-                print(
-                    f"Starting with {remeshed_faces.shape[0]} faces"
-                )
+                self.message = f"Starting with {remeshed_faces.shape[0]} faces"
+                print(self.message)
+                gui.Application.instance.post_to_main_thread(
+                    self.window, self._message_label_change)
+
             mesh = Mesh(remeshed_vertices, remeshed_faces)
             model = PointToMeshModel(
                 mesh.edges.shape[0], self.options["pooling"])
@@ -497,7 +535,12 @@ class MainWindow:
                     f"Chamfer Loss:{loss.numpy().item()}",
                     f"Time:{time.time()-iteration_start_time}"
                 ]
-                print(" ".join(message))
+                self.message = " ".join(message)
+                print(self.message)
+                if not self.train_status:
+                    self.message += "  already stop the training."
+                gui.Application.instance.post_to_main_thread(
+                    self.window, self._message_label_change)
 
                 # 画布替换
                 o3d_mesh = o3d.geometry.TriangleMesh()
@@ -509,18 +552,76 @@ class MainWindow:
                 gui.Application.instance.post_to_main_thread(
                     self.window, self.on_train_change_scene)
 
+                # 暂停训练
+                while not self.train_status:
+                    pass
+
                 if converged:
-                    print(
-                        f"Converged at iteration {iteration + 1}/{num_iterations}."
-                    )
+                    self.message = f"Converged at iteration {iteration + 1}/{num_iterations}."
+                    print(self.message)
+                    gui.Application.instance.post_to_main_thread(
+                        self.window, self._message_label_change)
                     break
+
+        self.message = "Done"
+        print(self.message)
+        gui.Application.instance.post_to_main_thread(
+            self.window, self._message_label_change)
+        self.train_status = False
+        self.Train_button.enabled = True
+        self.stop_button.visible = False
 
     def on_train_change_scene(self):
         self._scene.scene.clear_geometry()
         self._scene.scene.add_geometry("__model__", self.geometry,
                                        self.settings.material)
-        bounds = self.geometry.get_axis_aligned_bounding_box()
-        self._scene.setup_camera(60, bounds, bounds.get_center())
+        # bounds = self.geometry.get_axis_aligned_bounding_box()
+        # self._scene.setup_camera(60, bounds, bounds.get_center())
+
+    def _message_label_change(self):
+        self.message_label.text = self.message
+
+    def _check_train_parameters(self) -> bool:
+        errors = []
+        if self.options["point_cloud"] == None or len(self.options["point_cloud"]) == 0:
+            errors.append("point cloud is empty.")
+        if self.options["num_subdivisions"] <= 0:
+            errors.append("num of epochs need > 0.")
+        if self.options["num_iterations"] <= 0:
+            errors.append("num of iterations need > 0.")
+        if self.options["subdivision_multiplier"] <= 1:
+            errors.append(
+                "the multiple of face number of two adjacent epoch need > 1.0.")
+        if self.options["initial_num_faces"] < 1000:
+            errors.append("suggest The initial face number > 1000.")
+        if self.options["max_num_faces"] < self.options["initial_num_faces"]:
+            errors.append(
+                "The maximum face number need greater than initial_num_faces.")
+        if self.options["obj_save_modulo"] <= 0:
+            errors.append("the number how often to save need > 0")
+
+        self.show_message_box("errors", errors)
+        if len(errors) == 0:
+            return True
+        else:
+            return False
+
+    def show_message_box(self, title: str, message: list):
+        message_box = gui.Dialog(title)
+        em = self.window.theme.font_size
+        message_box_layout = gui.Vert(em, gui.Margins(em, em, em, em))
+        for m in message:
+            message_box_layout.add_child(gui.Label(m))
+        ok_button = gui.Button("OK")
+        ok_button.set_on_clicked(self._dialog_cancel)
+        button_layout = gui.Horiz()
+        button_layout.add_stretch()
+        button_layout.add_child(ok_button)
+
+        message_box_layout.add_child(button_layout)
+
+        message_box.add_child(message_box_layout)
+        self.window.show_dialog(message_box)
 
 
 def main():
