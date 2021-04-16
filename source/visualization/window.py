@@ -9,8 +9,8 @@ import tensorflow as tf
 import trimesh
 import threading
 
-from ..Tools import remesh, Obj
 from .settings import Settings
+from ..script.tools import Obj, remesh
 from ..model.Loss import ChamferLossLayer, ConvergenceDetector
 from ..model.Mesh import Mesh
 from ..model.PointToMeshModel import PointToMeshModel, get_vertex_features
@@ -600,10 +600,10 @@ class MainWindow:
         if self.options["obj_save_modulo"] <= 0:
             errors.append("the number how often to save need > 0")
 
-        self.show_message_box("errors", errors)
         if len(errors) == 0:
             return True
         else:
+            self.show_message_box("errors", errors)
             return False
 
     def show_message_box(self, title: str, message: list):

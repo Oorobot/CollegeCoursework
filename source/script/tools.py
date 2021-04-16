@@ -5,7 +5,7 @@ import trimesh
 import numpy as np
 from typing import Tuple
 
-MANIFOLD_SOFTWARE_DIR = "D:/User/Desktop/GraduationProject/MANIFOLD/build/Release"
+MANIFOLD_SOFTWARE_DIR = "C:/Users/Sun/Desktop/GraduationProject/MANIFOLD/build/Release"
 
 
 # 根据点云创建初始网格(凸包网格)

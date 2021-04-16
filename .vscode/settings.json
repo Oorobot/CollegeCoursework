@@ -1,5 +1,4 @@
 {
-    "python.pythonPath": "D:\\ProgramData\\Miniconda3\\envs\\gp\\python.exe",
     "cmake.configureOnOpen": false,
     "python.formatting.provider": "autopep8",
     "files.exclude": {
@@ -10,14 +9,14 @@
         "**/.DS_Store": true,
         "**/*.pyc": true,
         "**/__pycache__": true,
-        "**/__init__.py": true,
+        "**/__init__.py": true
     },
     "search.exclude": {
         "**/node_modules": true,
         "**/bower_components": true,
         "**/*.code-search": true,
         "**/env": true,
-        "Manifold": true,
+        "Manifold": true
     },
-    "python.languageServer": "Pylance",
+    "python.languageServer": "Pylance"
 }

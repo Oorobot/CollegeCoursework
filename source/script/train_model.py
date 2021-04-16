@@ -7,14 +7,13 @@ import numpy as np
 import tensorflow as tf
 import trimesh
 from colorama import Back, Fore, Style
-from tensorflow.python.keras.backend import dtype
 
-import Tools
-from .model.Loss import (BeamGapLossLayer, ChamferLossLayer,
-                         ConvergenceDetector, discrete_project)
-from .model.Mesh import Mesh
-from .model.PointToMeshModel import PointToMeshModel, get_vertex_features
-from .Options import load_options
+from .tools import Obj, remesh
+from .options import load_options
+from ..model.Loss import (BeamGapLossLayer, ChamferLossLayer,
+                          ConvergenceDetector, discrete_project)
+from ..model.Mesh import Mesh
+from ..model.PointToMeshModel import PointToMeshModel, get_vertex_features
 
 # This makes Colorama (terminal colors) work on Windows.
 colorama.init()
@@ -34,16 +33,16 @@ point_cloud_tf = tf.convert_to_tensor(point_cloud_np, dtype=tf.float32)
 
 
 def save_mesh(file_name, vertices, faces):
-    Tools.Obj.save(os.path.join(
+    Obj.save(os.path.join(
         options["save_location"], file_name), vertices, faces)
 
 
 # Create the mesh.
 if options["initial_mesh"]:
-    remeshed_vertices, remeshed_faces = Tools.Obj.load(options["initial_mesh"])
+    remeshed_vertices, remeshed_faces = Obj.load(options["initial_mesh"])
 else:
     convex_hull = trimesh.convex.convex_hull(point_cloud_np)
-    remeshed_vertices, remeshed_faces = Tools.remesh(
+    remeshed_vertices, remeshed_faces = remesh(
         convex_hull.vertices, convex_hull.faces, options["initial_num_faces"]
     )
 save_mesh("tmp_initial_mesh.obj", remeshed_vertices, remeshed_faces)
@@ -72,7 +71,7 @@ for subdivision_level in range(num_subdivisions):
         print(
             f"{Back.MAGENTA}Remeshing to {int(new_num_faces)} faces.{Style.RESET_ALL}"
         )
-        remeshed_vertices, remeshed_faces = Tools.remesh(
+        remeshed_vertices, remeshed_faces = remesh(
             new_vertices.numpy(), remeshed_faces, new_num_faces
         )
     else:
