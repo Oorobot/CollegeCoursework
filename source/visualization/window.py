@@ -52,6 +52,8 @@ class MainWindow:
     MENU_FILE = 1
     MENU_QUIT = 3
     MENU_ABOUT = 21
+    MENU_CONVEX_HULL = 23
+    MENU_REMESH = 24
 
     def __init__(self):
         self.settings = Settings()
@@ -74,6 +76,11 @@ class MainWindow:
             menu.add_separator()
             menu.add_item("Quit", MainWindow.MENU_QUIT)
             menubar.add_menu("View", menu)
+            operation_menu = gui.Menu()
+            operation_menu.add_item(
+                "Create convex hull", MainWindow.MENU_CONVEX_HULL)
+            operation_menu.add_item("Remesh", MainWindow.MENU_REMESH)
+            menubar.add_menu("Operation", operation_menu)
             gui.Application.instance.menubar = menubar
 
         self.window.set_on_menu_item_activated(
@@ -82,6 +89,10 @@ class MainWindow:
             MainWindow.MENU_ABOUT, self._on_menu_about)
         self.window.set_on_menu_item_activated(
             MainWindow.MENU_QUIT, self._on_menu_quit)
+        self.window.set_on_menu_item_activated(
+            MainWindow.MENU_CONVEX_HULL, self._on_menu_convex_hull)
+        self.window.set_on_menu_item_activated(
+            MainWindow.MENU_REMESH, self._on_menu_remesh)
 
         # 显示“三维模型”部分
         self._scene = gui.SceneWidget()
@@ -109,12 +120,12 @@ class MainWindow:
 
         point_cloud_button.set_on_clicked(self._on_point_cloud_button)
 
-        point_cloud_layout = gui.Horiz()
-        point_cloud_layout.add_child(gui.Label("Point Cloud:"))
-        point_cloud_layout.add_child(self._point_cloud)
-        point_cloud_layout.add_child(point_cloud_button)
+        self.point_cloud_layout = gui.Horiz()
+        self.point_cloud_layout.add_child(gui.Label("Point Cloud:"))
+        self.point_cloud_layout.add_child(self._point_cloud)
+        self.point_cloud_layout.add_child(point_cloud_button)
 
-        option_collapsablevert.add_child(point_cloud_layout)
+        option_collapsablevert.add_child(self.point_cloud_layout)
 
         # 训练结果存放的文件夹
         self._result_folder = gui.TextEdit()
@@ -253,7 +264,6 @@ class MainWindow:
         )
 
     # 菜单栏-载入文件
-
     def _on_menu_file(self):
         file_dialog = gui.FileDialog(
             gui.FileDialog.OPEN, "Choose File to open:", self.window.theme
@@ -291,7 +301,7 @@ class MainWindow:
     def _file_dialog_done(self, path):
         self.window.close_dialog()
         self.load(path)
-        self.message_label.text = "file: " + path
+        self.message_label.text = "[info] file: " + path
 
     # 菜单栏-关于
     def _on_menu_about(self):
@@ -301,6 +311,18 @@ class MainWindow:
     # 菜单栏-退出
     def _on_menu_quit(self):
         gui.Application.instance.quit()
+
+    def _on_menu_convex_hull(self):
+        em = self.window.theme.font_size
+        ch_layout = gui.Vert(0, gui.Margins(0.2*em, 0, 0.2*em, 0))
+
+        ch_layout.add_child(self.point_cloud_layout)
+        self.show_self_design_dialog("convex hull",ch_layout,"create convex hull")
+
+    
+    def _on_menu_remesh(self):
+        gui.Vert()
+        pass
 
     # 添加点云文件按钮
     def _on_point_cloud_button(self):
@@ -315,21 +337,13 @@ class MainWindow:
     def _on_p_c_d_done(self, path):
         self._point_cloud.text_value = path
         path_list = path.split("/")
-        filename = path_list.pop()
+        path_list.pop()
         path_list.append("results")
         result_path = "/".join(path_list)
         self._result_folder.text_value = result_path
-        point_cloud = o3d.io.read_point_cloud(path, format='xyz')
-
-        self._scene.scene.clear_geometry()
-
-        self._scene.scene.add_geometry(
-            filename, point_cloud, self.settings.material)
-        bounds = point_cloud.get_axis_aligned_bounding_box()
-        self._scene.setup_camera(60, bounds, bounds.get_center())
 
         self.window.close_dialog()
-        self.message_label.text = "showing point cloud."
+        self.load_other_format_pc(path)
 
     def _on_initial_mesh_status(self, is_checked):
         if is_checked:
@@ -421,18 +435,35 @@ class MainWindow:
 
         if geometry is not None:
             try:
-                self._scene.scene.add_geometry("__model__", geometry,
-                                               self.settings.material)
+                self._scene.scene.add_geometry(
+                    "__model__", geometry, self.settings.material)
                 bounds = geometry.get_axis_aligned_bounding_box()
                 self._scene.setup_camera(60, bounds, bounds.get_center())
             except Exception as e:
                 print(e)
 
+    def load_other_format_pc(self, path):
+        self._scene.scene.clear_geometry()
+        cloud = None
+        try:
+            cloud = o3d.io.read_point_cloud(path, format='xyz')
+        except Exception:
+            pass
+        if cloud is not None:
+            self.message_label.text = "[Info] Successfully read " + path
+            print("[Info] Successfully read", path)
+            try:
+                self._scene.scene.add_geometry(
+                    "__cloud__", cloud, self.settings.material)
+                bounds = cloud.get_axis_aligned_bounding_box()
+                self._scene.setup_camera(60, bounds, bounds.get_center())
+            except Exception as e:
+                print(e)
+        else:
+            self.message_label.text = "[WARNING] Failed to read points " + path
+            print("[WARNING] Failed to read points", path)
+
     def train_model(self):
-        # GPU.
-        physical_devices = tf.config.list_physical_devices("GPU")
-        if len(physical_devices) > 0:
-            tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
         point_cloud = np.loadtxt(
             fname=self.options["point_cloud"], usecols=(0, 1, 2))
@@ -441,6 +472,12 @@ class MainWindow:
         def save_mesh(filename, vertices, faces):
             Obj.save(os.path.join(
                 self.options["save_location"], filename), vertices, faces)
+        
+        def print_message(message: str):
+            self.message = message
+            print(self.message)
+            gui.Application.instance.post_to_main_thread(
+                self.window, self._message_label_change)
 
         # 初始网格
         if self.options["initial_mesh"]:
@@ -471,19 +508,13 @@ class MainWindow:
                         remeshed_faces.shape[0]
                     )
 
-                self.message = f"Remeshing to {int(new_face_num)} faces"
-                print(self.message)
-                gui.Application.instance.post_to_main_thread(
-                    self.window, self._message_label_change)
+                print_message(f"Remeshing to {int(new_face_num)} faces")
 
                 remeshed_vertices, remeshed_faces = remesh(
                     new_vertices.numpy(), remeshed_faces, new_face_num
                 )
             else:
-                self.message = f"Starting with {remeshed_faces.shape[0]} faces"
-                print(self.message)
-                gui.Application.instance.post_to_main_thread(
-                    self.window, self._message_label_change)
+                print_message(f"Starting with {remeshed_faces.shape[0]} faces")
 
             mesh = Mesh(remeshed_vertices, remeshed_faces)
             model = PointToMeshModel(
@@ -535,12 +566,8 @@ class MainWindow:
                     f"Chamfer Loss:{loss.numpy().item()}",
                     f"Time:{time.time()-iteration_start_time}"
                 ]
-                self.message = " ".join(message)
-                print(self.message)
-                if not self.train_status:
-                    self.message += "  already stop the training."
-                gui.Application.instance.post_to_main_thread(
-                    self.window, self._message_label_change)
+
+                print_message(" ".join(message))
 
                 # 画布替换
                 o3d_mesh = o3d.geometry.TriangleMesh()
@@ -550,33 +577,25 @@ class MainWindow:
 
                 self.geometry = o3d_mesh
                 gui.Application.instance.post_to_main_thread(
-                    self.window, self.on_train_change_scene)
+                    self.window, self._on_train_change_scene)
 
                 # 暂停训练
                 while not self.train_status:
                     pass
 
                 if converged:
-                    self.message = f"Converged at iteration {iteration + 1}/{num_iterations}."
-                    print(self.message)
-                    gui.Application.instance.post_to_main_thread(
-                        self.window, self._message_label_change)
+                    print_message(f"Converged at iteration {iteration + 1}/{num_iterations}.")
                     break
 
-        self.message = "Done"
-        print(self.message)
-        gui.Application.instance.post_to_main_thread(
-            self.window, self._message_label_change)
+        print_message("Done")
         self.train_status = False
         self.Train_button.enabled = True
         self.stop_button.visible = False
 
-    def on_train_change_scene(self):
+    def _on_train_change_scene(self):
         self._scene.scene.clear_geometry()
-        self._scene.scene.add_geometry("__model__", self.geometry,
-                                       self.settings.material)
-        # bounds = self.geometry.get_axis_aligned_bounding_box()
-        # self._scene.setup_camera(60, bounds, bounds.get_center())
+        self._scene.scene.add_geometry(
+            "__model__", self.geometry, self.settings.material)
 
     def _message_label_change(self):
         self.message_label.text = self.message
@@ -622,6 +641,19 @@ class MainWindow:
 
         message_box.add_child(message_box_layout)
         self.window.show_dialog(message_box)
+    
+    def show_self_design_dialog(self, title: str, layout: gui.Vert, button_text: str):
+        self_design_dialog = gui.Dialog(title)
+
+        button = gui.Button(button_text)
+        button.set_on_clicked(self._dialog_cancel)
+        button_layout = gui.Horiz()
+        button_layout.add_stretch()
+        button_layout.add_child(button)
+
+        layout.add_child(button)
+        self_design_dialog.add_child(layout)
+        self.window.show_dialog(self_design_dialog)
 
 
 def main():

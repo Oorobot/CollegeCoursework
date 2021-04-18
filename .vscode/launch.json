@@ -9,6 +9,12 @@
             "type": "python",
             "request": "launch",
             "module": "source.visualization.window",
+        },
+        {
+            "name": "train model",
+            "type": "python",
+            "request": "launch",
+            "module": "source.script.train_model"
         }
 
     ]
