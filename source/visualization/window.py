@@ -317,9 +317,9 @@ class MainWindow:
         ch_layout = gui.Vert(0, gui.Margins(0.2*em, 0, 0.2*em, 0))
 
         ch_layout.add_child(self.point_cloud_layout)
-        self.show_self_design_dialog("convex hull",ch_layout,"create convex hull")
+        self.show_self_design_dialog(
+            "convex hull", ch_layout, "create convex hull")
 
-    
     def _on_menu_remesh(self):
         gui.Vert()
         pass
@@ -330,6 +330,10 @@ class MainWindow:
             gui.FileDialog.OPEN, "Select point cloud file:", self.window.theme)
         point_cloud_dialog.add_filter(
             ".txt .pwn", "fitted point cloud files(.txt .pwn)")
+        point_cloud_dialog.add_filter(
+            ".xyz .xyzn .xyzrgb .ply .pcd .pts",
+            "Point cloud files (.xyz, .xyzn, .xyzrgb, .ply, "
+            ".pcd, .pts)")
         point_cloud_dialog.set_on_cancel(self._dialog_cancel)
         point_cloud_dialog.set_on_done(self._on_p_c_d_done)
         self.window.show_dialog(point_cloud_dialog)
@@ -444,9 +448,13 @@ class MainWindow:
 
     def load_other_format_pc(self, path):
         self._scene.scene.clear_geometry()
+        suffix = path.split(".")[1]
         cloud = None
         try:
-            cloud = o3d.io.read_point_cloud(path, format='xyz')
+            if suffix == "txt" or suffix == "pwn":
+                cloud = o3d.io.read_point_cloud(path, format='xyz')
+            else:
+                cloud = o3d.io.read_point_cloud(path)
         except Exception:
             pass
         if cloud is not None:
@@ -472,7 +480,7 @@ class MainWindow:
         def save_mesh(filename, vertices, faces):
             Obj.save(os.path.join(
                 self.options["save_location"], filename), vertices, faces)
-        
+
         def print_message(message: str):
             self.message = message
             print(self.message)
@@ -584,7 +592,8 @@ class MainWindow:
                     pass
 
                 if converged:
-                    print_message(f"Converged at iteration {iteration + 1}/{num_iterations}.")
+                    print_message(
+                        f"Converged at iteration {iteration + 1}/{num_iterations}.")
                     break
 
         print_message("Done")
@@ -641,7 +650,7 @@ class MainWindow:
 
         message_box.add_child(message_box_layout)
         self.window.show_dialog(message_box)
-    
+
     def show_self_design_dialog(self, title: str, layout: gui.Vert, button_text: str):
         self_design_dialog = gui.Dialog(title)
 
