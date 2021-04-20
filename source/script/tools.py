@@ -31,9 +31,9 @@ def remesh(vertices: np.ndarray, faces: np.ndarray, faces_num=2000):
     cmd = f"start {manifold_software_path} {original_file} {manifold_file}"
     os.system(cmd)
 
+    print("generating a manifold mesh...")
     while(not os.path.exists(manifold_file)):
-        time.sleep(2)
-        print("正在生成manifold……")
+        time.sleep(1)
 
     # 简化manifold文件
     simplified_file = random_filename("obj")
@@ -41,9 +41,9 @@ def remesh(vertices: np.ndarray, faces: np.ndarray, faces_num=2000):
     cmd = f"start {simplify_software_path} -i {manifold_file} -o {simplified_file} -f {faces_num}"
     os.system(cmd)
 
+    print("simplifying a manifold mesh...")
     while(not os.path.exists(simplified_file)):
-        time.sleep(2)
-        print("正在简化manifold……")
+        time.sleep(1)
 
     # 此处起开始单步调试，程序正常运行
     with open(simplified_file, "r") as f:

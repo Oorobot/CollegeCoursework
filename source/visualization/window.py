@@ -10,6 +10,7 @@ import trimesh
 import threading
 
 from .settings import Settings
+from .tools import from_o3d_to_numpy, from_numpy_to_o3d
 from ..script.tools import Obj, remesh
 from ..model.Loss import ChamferLossLayer, ConvergenceDetector
 from ..model.Mesh import Mesh
@@ -50,16 +51,21 @@ Options = {
 
 class MainWindow:
     MENU_FILE = 1
-    MENU_QUIT = 3
+    MENU_EXPORTFILE = 2
     MENU_ABOUT = 21
     MENU_CONVEX_HULL = 23
     MENU_REMESH = 24
 
     def __init__(self):
+        # 渲染
         self.settings = Settings()
+        # 参数
         self.options = None
+        # 画布中的模型
         self.geometry = None
+        # 消息面板-显示消息
         self.message = None
+        # 训练状态：True-训练中，False-未训练或训练暂停
         self.train_status = False
 
         self.window = gui.Application.instance.create_window(
@@ -70,29 +76,33 @@ class MainWindow:
         # 菜单栏以及菜单设置
         if gui.Application.instance.menubar is None:
             menubar = gui.Menu()
-            menu = gui.Menu()
-            menu.add_item("File", MainWindow.MENU_FILE)
-            menu.add_item("About", MainWindow.MENU_ABOUT)
-            menu.add_separator()
-            menu.add_item("Quit", MainWindow.MENU_QUIT)
-            menubar.add_menu("View", menu)
+            file_menu = gui.Menu()
+            file_menu.add_item("improt Mesh", MainWindow.MENU_FILE)
+            file_menu.add_item("export Mesh as ...",
+                               MainWindow.MENU_EXPORTFILE)
+            menubar.add_menu("File", file_menu)
+
             operation_menu = gui.Menu()
             operation_menu.add_item(
                 "Create convex hull", MainWindow.MENU_CONVEX_HULL)
-            operation_menu.add_item("Remesh", MainWindow.MENU_REMESH)
-            menubar.add_menu("Operation", operation_menu)
+            operation_menu.add_item("Remesh:Manifold and Simplify", MainWindow.MENU_REMESH)
+            menubar.add_menu("Operations", operation_menu)
+
+            help_menu = gui.Menu()
+            help_menu.add_item("About", MainWindow.MENU_ABOUT)
+            menubar.add_menu("Help", help_menu)
             gui.Application.instance.menubar = menubar
 
         self.window.set_on_menu_item_activated(
             MainWindow.MENU_FILE, self._on_menu_file)
         self.window.set_on_menu_item_activated(
-            MainWindow.MENU_ABOUT, self._on_menu_about)
-        self.window.set_on_menu_item_activated(
-            MainWindow.MENU_QUIT, self._on_menu_quit)
+            MainWindow.MENU_EXPORTFILE, self._on_menu_export_file)
         self.window.set_on_menu_item_activated(
             MainWindow.MENU_CONVEX_HULL, self._on_menu_convex_hull)
         self.window.set_on_menu_item_activated(
             MainWindow.MENU_REMESH, self._on_menu_remesh)
+        self.window.set_on_menu_item_activated(
+            MainWindow.MENU_ABOUT, self._on_menu_about)
 
         # 显示“三维模型”部分
         self._scene = gui.SceneWidget()
@@ -238,14 +248,14 @@ class MainWindow:
         self.control_layout.add_child(Train_button_layout)
 
         # 消息框
-        self.message_layout = gui.Horiz(em, gui.Margins(em, 0, em, 0))
+        self.info_panel = gui.Horiz(em, gui.Margins(em, 0, em, 0))
         self.message_label = gui.Label("Welcome.")
-        self.message_layout.add_child(self.message_label)
+        self.info_panel.add_child(self.message_label)
 
         self.window.set_on_layout(self._on_layout)
         self.window.add_child(self._scene)
         self.window.add_child(self.control_layout)
-        self.window.add_child(self.message_layout)
+        self.window.add_child(self.info_panel)
 
     # 布局设置
     def _on_layout(self, theme):
@@ -257,10 +267,10 @@ class MainWindow:
                      self.control_layout.calc_preferred_size(theme).height)
         self.control_layout.frame = gui.Rect(
             r.get_right() - width, r.y, width, height)
-        self.message_layout.frame = gui.Rect(
+        self.info_panel.frame = gui.Rect(
             r.x, r.y+r.height -
-            self.message_layout.calc_preferred_size(theme).height,
-            r.width, self.message_layout.calc_preferred_size(theme).height
+            self.info_panel.calc_preferred_size(theme).height,
+            r.width, self.info_panel.calc_preferred_size(theme).height
         )
 
     # 菜单栏-载入文件
@@ -301,28 +311,52 @@ class MainWindow:
     def _file_dialog_done(self, path):
         self.window.close_dialog()
         self.load(path)
-        self.message_label.text = "[info] file: " + path
+        self._print_message("[info] file: " + path)
 
     # 菜单栏-关于
     def _on_menu_about(self):
         self.window.show_message_box(
-            "About", "Point2Mesh Model Visualization!!!")
+            "About", "Welcome to Point2Mesh Model Visualization!!!")
 
-    # 菜单栏-退出
-    def _on_menu_quit(self):
-        gui.Application.instance.quit()
+    def _on_menu_export_file(self):
+        file_dialog = gui.FileDialog(
+            gui.FileDialog.SAVE, "Choose File to open:", self.window.theme
+        )
+        file_dialog.add_filter(".obj", "Wavefront OBJ files (.obj)")
+        file_dialog.add_filter(".off", "Object file format (.off)")
+        file_dialog.add_filter(".ply", "Polygon files (.ply)")
+        file_dialog.add_filter(".stl", "Stereolithography files (.stl)")
+        file_dialog.add_filter(".fbx", "Autodesk Filmbox files (.fbx)")
+        file_dialog.add_filter(".gltf", "OpenGL transfer files (.gltf)")
+        file_dialog.add_filter(".glb", "OpenGL binary transfer files (.glb)")
+        file_dialog.add_filter(".xyz", "ASCII point cloud files (.xyz)")
+        file_dialog.add_filter(
+            ".xyzn", "ASCII point cloud with normals (.xyzn)")
+        file_dialog.add_filter(".xyzrgb",
+                               "ASCII point cloud files with colors (.xyzrgb)")
+        file_dialog.add_filter(".pcd", "Point Cloud Data files (.pcd)")
+        file_dialog.add_filter(".pts", "3D Points files (.pts)")
+        file_dialog.set_on_cancel(self._dialog_cancel)
+        file_dialog.set_on_done(self._export_file_dialog_done)
+        self.window.show_dialog(file_dialog)
+
+    def _export_file_dialog_done(self, path):
+        self.window.close_dialog()
+        self.write(path)
 
     def _on_menu_convex_hull(self):
-        em = self.window.theme.font_size
-        ch_layout = gui.Vert(0, gui.Margins(0.2*em, 0, 0.2*em, 0))
-
-        ch_layout.add_child(self.point_cloud_layout)
-        self.show_self_design_dialog(
-            "convex hull", ch_layout, "create convex hull")
+        if self.geometry is not None:
+            convex_hull, _ = self.geometry.compute_convex_hull()
+            self._scene.scene.add_geometry(
+                "convex_hull", convex_hull, self.settings.material)
+            vertices, faces = from_o3d_to_numpy(convex_hull)
+            self._print_message("[INFO] already create convex_hull, vertices: " +
+                                str(vertices.shape[0]) + ", faces: " + str(faces.shape[0]))
+        else:
+            self._print_message("[WARNING] There is no Mesh.")
 
     def _on_menu_remesh(self):
-        gui.Vert()
-        pass
+        self.show_remesh_dialog("remesh")
 
     # 添加点云文件按钮
     def _on_point_cloud_button(self):
@@ -396,11 +430,11 @@ class MainWindow:
         else:
             self.stop_button.text = "Stop"
             self.train_status = True
-            self.message_label.text = "recovery the training."
+            self._print_message("recovery the training.")
 
     def load(self, path):
         self._scene.scene.clear_geometry()
-        geometry = None
+        self.geometry = None
         geometry_type = o3d.io.read_file_geometry_type(path)
         mesh = None
         if geometry_type & o3d.io.CONTAINS_TRIANGLES:
@@ -414,7 +448,7 @@ class MainWindow:
                 mesh.compute_vertex_normals()
                 if len(mesh.vertex_colors) == 0:
                     mesh.paint_uniform_color([1, 1, 1])
-                geometry = mesh
+                self.geometry = mesh
             # Make sure the mesh has texture coordinates
             if not mesh.has_triangle_uvs():
                 uv = np.array([[0.0, 0.0]] * (3 * len(mesh.triangles)))
@@ -422,7 +456,7 @@ class MainWindow:
         else:
             print("[Info]", path, "appears to be a point cloud")
 
-        if geometry is None:
+        if self.geometry is None:
             cloud = None
             try:
                 cloud = o3d.io.read_point_cloud(path)
@@ -433,15 +467,15 @@ class MainWindow:
                 if not cloud.has_normals():
                     cloud.estimate_normals()
                 cloud.normalize_normals()
-                geometry = cloud
+                self.geometry = cloud
             else:
                 print("[WARNING] Failed to read points", path)
 
-        if geometry is not None:
+        if self.geometry is not None:
             try:
                 self._scene.scene.add_geometry(
-                    "__model__", geometry, self.settings.material)
-                bounds = geometry.get_axis_aligned_bounding_box()
+                    "__model__", self.geometry, self.settings.material)
+                bounds = self.geometry.get_axis_aligned_bounding_box()
                 self._scene.setup_camera(60, bounds, bounds.get_center())
             except Exception as e:
                 print(e)
@@ -449,27 +483,66 @@ class MainWindow:
     def load_other_format_pc(self, path):
         self._scene.scene.clear_geometry()
         suffix = path.split(".")[1]
-        cloud = None
+        self.geometry = None
         try:
             if suffix == "txt" or suffix == "pwn":
-                cloud = o3d.io.read_point_cloud(path, format='xyz')
+                self.geometry = o3d.io.read_point_cloud(path, format='xyz')
             else:
-                cloud = o3d.io.read_point_cloud(path)
+                self.geometry = o3d.io.read_point_cloud(path)
         except Exception:
             pass
-        if cloud is not None:
-            self.message_label.text = "[Info] Successfully read " + path
+        if self.geometry is not None:
+            self._print_message("[Info] Successfully read " + path)
             print("[Info] Successfully read", path)
             try:
                 self._scene.scene.add_geometry(
-                    "__cloud__", cloud, self.settings.material)
-                bounds = cloud.get_axis_aligned_bounding_box()
+                    "__cloud__", self.geometry, self.settings.material)
+                bounds = self.geometry.get_axis_aligned_bounding_box()
                 self._scene.setup_camera(60, bounds, bounds.get_center())
             except Exception as e:
                 print(e)
         else:
-            self.message_label.text = "[WARNING] Failed to read points " + path
+            self._print_message("[WARNING] Failed to read points " + path)
             print("[WARNING] Failed to read points", path)
+
+    def write(self, path):
+        suffix = path.split(".")[1]
+        point_cloud_file_extension_name = [
+            "xyz", "xyzn", "xyzrgb", "ply", "pcd", "pts"]
+        mesh_file_extension_name = [
+            "ply", "stl", "fbx", "obj", "off", "gltf", "glb"]
+        if self.geometry is None:
+            self._print_message("[WARNING] There is no Mesh.")
+        else:
+            vertices, faces = from_o3d_to_numpy(self.geometry)
+            if faces is None:
+                if suffix in point_cloud_file_extension_name:
+                    try:
+                        o3d.io.write_point_cloud(
+                            path, self.geometry, write_ascii=True)
+                    except Exception as e:
+                        print(e)
+                else:
+                    faces = np.array([]).reshape(-1, 3)
+                    try:
+                        o3d.io.write_triangle_mesh(
+                            path, from_numpy_to_o3d(vertices, faces), write_ascii=True)
+                    except Exception as e:
+                        print(e)
+            else:
+                if suffix in mesh_file_extension_name:
+                    try:
+                        o3d.io.write_triangle_mesh(
+                            path, self.geometry, write_ascii=True)
+                    except Exception as e:
+                        print(e)
+                else:
+                    try:
+                        o3d.io.write_point_cloud(
+                            path, from_numpy_to_o3d(vertices, None), write_ascii=True)
+                    except Exception as e:
+                        print(e)
+            self._print_message("[Info] file is saved at: " + path)
 
     def train_model(self):
 
@@ -485,7 +558,7 @@ class MainWindow:
             self.message = message
             print(self.message)
             gui.Application.instance.post_to_main_thread(
-                self.window, self._message_label_change)
+                self.window, self._print_message_on_child_thread)
 
         # 初始网格
         if self.options["initial_mesh"]:
@@ -574,22 +647,20 @@ class MainWindow:
                     f"Chamfer Loss:{loss.numpy().item()}",
                     f"Time:{time.time()-iteration_start_time}"
                 ]
-
-                print_message(" ".join(message))
+                if self.train_status:
+                    print_message(" ".join(message))
+                else:
+                    print_message(" ".join(message) + " [INFO] already stop the training")
 
                 # 画布替换
-                o3d_mesh = o3d.geometry.TriangleMesh()
-                o3d_mesh.vertices = o3d.utility.Vector3dVector(
-                    new_vertices.numpy())
-                o3d_mesh.triangles = o3d.utility.Vector3iVector(remeshed_faces)
-
-                self.geometry = o3d_mesh
+                self.geometry = from_numpy_to_o3d(
+                    new_vertices.numpy(), remeshed_faces)
                 gui.Application.instance.post_to_main_thread(
-                    self.window, self._on_train_change_scene)
+                    self.window, self._change_scene_on_child_thread)
 
                 # 暂停训练
                 while not self.train_status:
-                    pass
+                    time.sleep(1)
 
                 if converged:
                     print_message(
@@ -601,14 +672,19 @@ class MainWindow:
         self.Train_button.enabled = True
         self.stop_button.visible = False
 
-    def _on_train_change_scene(self):
+    def _change_scene_on_child_thread(self):
         self._scene.scene.clear_geometry()
         self._scene.scene.add_geometry(
             "__model__", self.geometry, self.settings.material)
 
-    def _message_label_change(self):
+    # 消息面板
+    def _print_message_on_child_thread(self):
         self.message_label.text = self.message
 
+    def _print_message(self, message: str):
+        self.message_label.text = message
+
+    # 校验训练参数
     def _check_train_parameters(self) -> bool:
         errors = []
         if self.options["point_cloud"] == None or len(self.options["point_cloud"]) == 0:
@@ -651,18 +727,42 @@ class MainWindow:
         message_box.add_child(message_box_layout)
         self.window.show_dialog(message_box)
 
-    def show_self_design_dialog(self, title: str, layout: gui.Vert, button_text: str):
-        self_design_dialog = gui.Dialog(title)
+    def show_remesh_dialog(self, title: str):
+        remesh_dialog = gui.Dialog(title)
+        em = self.window.theme.font_size
+        layout = gui.Vert(0, gui.Margins(0.2*em, 0.5*em, 0.2*em, 0.5*em))
+        layout.add_child(gui.Label("take a triangle mesh and generate a manifold mesh."))
+        layout.add_child(gui.Label("Then,for efficiency purpose,simplify the mesh."))
+        
+        self._remesh_face_num = gui.NumberEdit(gui.NumberEdit.INT)
+        self._remesh_face_num.int_value = 2000
+        face_num_layout = gui.Horiz(0, gui.Margins(0,0.5*em, 0, 0.5*em))
+        face_num_layout.add_child(gui.Label("simplified mesh's face number:"))
+        face_num_layout.add_child(self._remesh_face_num)
+        layout.add_child(face_num_layout)
 
-        button = gui.Button(button_text)
-        button.set_on_clicked(self._dialog_cancel)
+        button = gui.Button("apply")
+        button.set_on_clicked(self._remesh)
         button_layout = gui.Horiz()
         button_layout.add_stretch()
         button_layout.add_child(button)
-
         layout.add_child(button)
-        self_design_dialog.add_child(layout)
-        self.window.show_dialog(self_design_dialog)
+
+        remesh_dialog.add_child(layout)
+        self.window.show_dialog(remesh_dialog)
+    
+    def _remesh(self):
+        self._dialog_cancel()
+        if self.geometry is None or self.geometry.get_geometry_type() == o3d.geometry.Geometry.PointCloud:
+            self._print_message("[WARNING] There is no mesh or the geometry have no face.")
+        else:
+            vertices, faces = from_o3d_to_numpy(self.geometry)
+            new_vertices, new_faces = remesh(
+                vertices, faces, self._remesh_face_num.int_value)
+            self.geometry = from_numpy_to_o3d(new_vertices, new_faces)
+            self._change_scene_on_child_thread()
+            self._print_message("[INFO] already remesh, vertices: " +
+                                str(new_vertices.shape[0]) + ", faces: " + str(new_faces.shape[0]))
 
 
 def main():

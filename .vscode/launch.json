@@ -5,6 +5,13 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python: 当前文件",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        },
+        {
             "name": "visualization train model",
             "type": "python",
             "request": "launch",
@@ -16,6 +23,5 @@
             "request": "launch",
             "module": "source.script.train_model"
         }
-
     ]
 }
