@@ -5,7 +5,10 @@ import trimesh
 import numpy as np
 from typing import Tuple
 
-MANIFOLD_SOFTWARE_DIR = "D:/Users/Sun/Desktop/GraduationProject/MANIFOLD/build/Release"
+
+project_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+# MANIFOLD_SOFTWARE_DIR = "D:/Users/Sun/Desktop/GraduationProject/MANIFOLD/build/Release"
+MANIFOLD_SOFTWARE_DIR = os.path.join(project_path, "MANIFOLD/build/Release")
 
 
 # 根据点云创建初始网格(凸包网格)
