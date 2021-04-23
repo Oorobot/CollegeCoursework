@@ -15,7 +15,7 @@
             "name": "visualization train model",
             "type": "python",
             "request": "launch",
-            "module": "source.visualization.window",
+            "module": "source.visualization.application",
         },
         {
             "name": "train model",

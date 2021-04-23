@@ -1,3 +1,4 @@
+from enum import Enum
 import os
 import time
 
@@ -16,7 +17,7 @@ from ..model.Loss import ChamferLossLayer, ConvergenceDetector
 from ..model.Mesh import Mesh
 from ..model.PointToMeshModel import PointToMeshModel, get_vertex_features
 
-# 训练参数
+
 Options = {
     # 点云文件
     "point_cloud": None,
@@ -50,18 +51,22 @@ Options = {
 
 
 class MainWindow:
-    MENU_FILE = 1
-    MENU_EXPORTFILE = 2
-    MENU_ABOUT = 21
-    MENU_CONVEX_HULL = 23
-    MENU_REMESH = 24
+
+    WINDOW_TRAIN = 1
+    WINDOW_GEOMETRY = 2
+    
+    MENU_FILE = 21
+    MENU_EXPORTFILE = 22
+    MENU_ABOUT = 23
+    MENU_CONVEX_HULL = 24
+    MENU_REMESH = 25
 
     def __init__(self):
         # 渲染
         self.settings = Settings()
         # 参数
         self.options = None
-        # 画布中的模型
+        # 三维模型
         self.geometry = None
         # 消息面板-显示消息
         self.message = None
@@ -105,24 +110,23 @@ class MainWindow:
             MainWindow.MENU_ABOUT, self._on_menu_about)
 
         # 显示“三维模型”部分
-        self._scene = gui.SceneWidget()
-        self._scene.scene = rendering.Open3DScene(self.window.renderer)
-        self._scene.scene.set_background([1, 1, 1, 1])
-        self._scene.scene.scene.set_sun_light(
+        self.display_panel = gui.SceneWidget()
+        self.display_panel.scene = rendering.Open3DScene(self.window.renderer)
+        self.display_panel.scene.set_background([1, 1, 1, 1])
+        self.display_panel.scene.scene.set_sun_light(
             [-1, -1, -1],  # direction
             [1, 1, 1],  # color
             100000)
-        self._scene.scene.scene.enable_sun_light(True)
+        self.display_panel.scene.scene.enable_sun_light(True)
 
-        # 训练模型参数设置
+        # 训练模型操作面板
         self.control_layout = gui.Vert(
             0, gui.Margins(em*0.5, em*0.5, em*0.5, em*0.5))
-
         option_collapsablevert = gui.CollapsableVert(
             "Train Model", 0, gui.Margins(0.5*em, 0, 0.5*em, 0))
         option_collapsablevert.set_is_open(False)
 
-        # 选择使用的点云文件
+        # 点云文件布局（选择点云文件）
         self._point_cloud = gui.TextEdit()
         point_cloud_button = gui.Button("...")
         point_cloud_button.horizontal_padding_em = 0.5
@@ -137,16 +141,16 @@ class MainWindow:
 
         option_collapsablevert.add_child(self.point_cloud_layout)
 
-        # 训练结果存放的文件夹
+        # 训练结果布局（由选择点云文件位置产生）
         self._result_folder = gui.TextEdit()
-        result_folder_layout = gui.Horiz()
 
+        result_folder_layout = gui.Horiz()
         result_folder_layout.add_child(gui.Label("Result file Folder:"))
         result_folder_layout.add_child(self._result_folder)
 
         option_collapsablevert.add_child(result_folder_layout)
 
-        # 是否有初始网格
+        # 初始网格布局（有->选择初始网格；无->略）
         self.initial_mesh_status = gui.Checkbox("Add initial mesh model")
         self.initial_mesh_status.set_on_checked(self._on_initial_mesh_status)
         self._initial_mesh = gui.TextEdit()
@@ -165,8 +169,7 @@ class MainWindow:
         option_collapsablevert.add_child(self.initial_mesh_status)
         option_collapsablevert.add_child(self.initial_mesh_layout)
 
-        # 详细的参数设置
-
+        # 参数布局1（基础）
         self._num_epoch = gui.NumberEdit(gui.NumberEdit.INT)
         self._num_epoch.int_value = Options["num_subdivisions"]
         self._num_epoch.set_limits(1, 99)
@@ -195,11 +198,10 @@ class MainWindow:
 
         option_collapsablevert.add_child(train_parameters_layout_1)
 
-        # 与面的数量相关的参数
+        # 参数布局2（面数）
         self._initial_faces_num = gui.NumberEdit(gui.NumberEdit.INT)
         self._initial_faces_num.int_value = Options["initial_num_faces"]
         self._initial_faces_num.set_limits(500, 5000)
-
         self._max_faces_num = gui.NumberEdit(gui.NumberEdit.INT)
         self._max_faces_num.int_value = Options["max_num_faces"]
         self._max_faces_num.set_limits(10000, 1000000)
@@ -208,7 +210,6 @@ class MainWindow:
         face_parameters_layout_0.add_child(
             gui.Label("The initial face number:"))
         face_parameters_layout_0.add_child(self._initial_faces_num)
-
         face_parameters_layout_1 = gui.Horiz()
         face_parameters_layout_1.add_child(
             gui.Label("The maximum face number:"))
@@ -217,20 +218,38 @@ class MainWindow:
         option_collapsablevert.add_child(face_parameters_layout_0)
         option_collapsablevert.add_child(face_parameters_layout_1)
 
-        # 其他参数
+        # 参数布局3（保存结果）
         self._save_obj = gui.NumberEdit(gui.NumberEdit.INT)
         self._save_obj.int_value = Options["obj_save_modulo"]
         self._save_obj.set_limits(1, 100)
 
-        # min_num_samples
-        # max_num_samples
+        save_parameters_layout = gui.Horiz()
+        save_parameters_layout.add_child(gui.Label("how often to save:"))
+        save_parameters_layout.add_child(self._save_obj)
+
+        option_collapsablevert.add_child(save_parameters_layout)
+
+        # 参数布局4（采样）
+        self._min_samples_num = gui.NumberEdit(gui.NumberEdit.INT)
+        self._min_samples_num.int_value = Options["min_num_samples"]
+        self._max_samples_num = gui.NumberEdit(gui.NumberEdit.INT)
+        self._max_samples_num.int_value = Options["max_num_samples"]
+
+        option_collapsablevert.add_child(
+            gui.Label("---range to lineralyinterp between when computing samples---"))
+        min_sample_layout = gui.Horiz()
+        min_sample_layout.add_child(
+            gui.Label("The minimum number of samples:"))
+        min_sample_layout.add_child(self._min_samples_num)
+        max_sample_layout = gui.Horiz()
+        max_sample_layout.add_child(
+            gui.Label("The maximum number of samples:"))
+        max_sample_layout.add_child(self._max_samples_num)
+        
+        option_collapsablevert.add_child(min_sample_layout)
+        option_collapsablevert.add_child(max_sample_layout)
+
         # pooling
-
-        other_parameters_layout = gui.Horiz()
-        other_parameters_layout.add_child(gui.Label("how often to save:"))
-        other_parameters_layout.add_child(self._save_obj)
-
-        option_collapsablevert.add_child(other_parameters_layout)
 
         self.control_layout.add_child(option_collapsablevert)
 
@@ -247,20 +266,20 @@ class MainWindow:
 
         self.control_layout.add_child(Train_button_layout)
 
-        # 消息框
+        # 消息面板
         self.info_panel = gui.Horiz(em, gui.Margins(em, 0, em, 0))
         self.message_label = gui.Label("Welcome.")
         self.info_panel.add_child(self.message_label)
 
         self.window.set_on_layout(self._on_layout)
-        self.window.add_child(self._scene)
+        self.window.add_child(self.display_panel)
         self.window.add_child(self.control_layout)
         self.window.add_child(self.info_panel)
 
-    # 布局设置
+    # 主窗口布局设定
     def _on_layout(self, theme):
         r = self.window.content_rect
-        self._scene.frame = r
+        self.display_panel.frame = r
         width = min(
             r.width, self.control_layout.calc_preferred_size(theme).width)
         height = min(r.height,
@@ -273,7 +292,7 @@ class MainWindow:
             r.width, self.info_panel.calc_preferred_size(theme).height
         )
 
-    # 菜单栏-载入文件
+    # 菜单栏 --> 载入文件
     def _on_menu_file(self):
         file_dialog = gui.FileDialog(
             gui.FileDialog.OPEN, "Choose File to open:", self.window.theme
@@ -313,7 +332,7 @@ class MainWindow:
         self.load(path)
         self._print_message("[info] file: " + path)
 
-    # 菜单栏-关于
+    # 菜单栏 --> 关于
     def _on_menu_about(self):
         self.window.show_message_box(
             "About", "Welcome to Point2Mesh Model Visualization!!!")
@@ -344,10 +363,11 @@ class MainWindow:
         self.window.close_dialog()
         self.write(path)
 
+    # 菜单栏  --> 创建凸包
     def _on_menu_convex_hull(self):
         if self.geometry is not None:
             convex_hull, _ = self.geometry.compute_convex_hull()
-            self._scene.scene.add_geometry(
+            self.display_panel.scene.add_geometry(
                 "convex_hull", convex_hull, self.settings.material)
             vertices, faces = from_o3d_to_numpy(convex_hull)
             self._print_message("[INFO] already create convex_hull, vertices: " +
@@ -358,7 +378,7 @@ class MainWindow:
     def _on_menu_remesh(self):
         self.show_remesh_dialog("remesh")
 
-    # 添加点云文件按钮
+    # 添加点云文件按钮功能
     def _on_point_cloud_button(self):
         point_cloud_dialog = gui.FileDialog(
             gui.FileDialog.OPEN, "Select point cloud file:", self.window.theme)
@@ -389,7 +409,7 @@ class MainWindow:
         else:
             self.initial_mesh_layout.visible = False
 
-    # 添加初始网格文件
+    # 添加初始网格按钮功能
     def _on_initial_mesh_button(self):
         initial_mesh_dialog = gui.FileDialog(
             gui.FileDialog.OPEN, "Select initial mesh file:", self.window.theme)
@@ -402,6 +422,7 @@ class MainWindow:
         self.window.close_dialog()
         self._initial_mesh.text_value = path
 
+    # 训练按钮功能
     def _on_train(self):
         self.options = Options.copy()
         self.options["num_subdivisions"] = self._num_epoch.int_value
@@ -410,6 +431,8 @@ class MainWindow:
         self.options["initial_num_faces"] = self._initial_faces_num.int_value
         self.options["max_num_faces"] = self._max_faces_num.int_value
         self.options["obj_save_modulo"] = self._save_obj.int_value
+        self.options["min_num_samples"] = self._min_samples_num.int_value
+        self.options["max_num_samples"] = self._max_samples_num.int_value
         if len(self._point_cloud.text_value) != 0:
             self.options["point_cloud"] = self._point_cloud.text_value
             self.options["save_location"] = self._result_folder.text_value
@@ -423,6 +446,7 @@ class MainWindow:
             self.Train_button.enabled = False
             threading.Thread(target=self.train_model).start()
 
+    # 暂停按钮功能
     def _on_stop(self):
         if self.train_status:
             self.stop_button.text = "Continue"
@@ -433,7 +457,7 @@ class MainWindow:
             self._print_message("recovery the training.")
 
     def load(self, path):
-        self._scene.scene.clear_geometry()
+        self.display_panel.scene.clear_geometry()
         self.geometry = None
         geometry_type = o3d.io.read_file_geometry_type(path)
         mesh = None
@@ -473,15 +497,15 @@ class MainWindow:
 
         if self.geometry is not None:
             try:
-                self._scene.scene.add_geometry(
+                self.display_panel.scene.add_geometry(
                     "__model__", self.geometry, self.settings.material)
                 bounds = self.geometry.get_axis_aligned_bounding_box()
-                self._scene.setup_camera(60, bounds, bounds.get_center())
+                self.display_panel.setup_camera(60, bounds, bounds.get_center())
             except Exception as e:
                 print(e)
 
     def load_other_format_pc(self, path):
-        self._scene.scene.clear_geometry()
+        self.display_panel.scene.clear_geometry()
         suffix = path.split(".")[1]
         self.geometry = None
         try:
@@ -495,10 +519,10 @@ class MainWindow:
             self._print_message("[Info] Successfully read " + path)
             print("[Info] Successfully read", path)
             try:
-                self._scene.scene.add_geometry(
+                self.display_panel.scene.add_geometry(
                     "__cloud__", self.geometry, self.settings.material)
                 bounds = self.geometry.get_axis_aligned_bounding_box()
-                self._scene.setup_camera(60, bounds, bounds.get_center())
+                self.display_panel.setup_camera(60, bounds, bounds.get_center())
             except Exception as e:
                 print(e)
         else:
@@ -673,8 +697,8 @@ class MainWindow:
         self.stop_button.visible = False
 
     def _change_scene_on_child_thread(self):
-        self._scene.scene.clear_geometry()
-        self._scene.scene.add_geometry(
+        self.display_panel.scene.clear_geometry()
+        self.display_panel.scene.add_geometry(
             "__model__", self.geometry, self.settings.material)
 
     # 消息面板
@@ -690,19 +714,23 @@ class MainWindow:
         if self.options["point_cloud"] == None or len(self.options["point_cloud"]) == 0:
             errors.append("point cloud is empty.")
         if self.options["num_subdivisions"] <= 0:
-            errors.append("num of epochs need > 0.")
+            errors.append("num of epochs must > 0.")
         if self.options["num_iterations"] <= 0:
-            errors.append("num of iterations need > 0.")
+            errors.append("num of iterations must > 0.")
         if self.options["subdivision_multiplier"] <= 1:
             errors.append(
-                "the multiple of face number of two adjacent epoch need > 1.0.")
+                "the multiple of face number of two adjacent epoch must > 1.0.")
         if self.options["initial_num_faces"] < 1000:
             errors.append("suggest The initial face number > 1000.")
         if self.options["max_num_faces"] < self.options["initial_num_faces"]:
             errors.append(
-                "The maximum face number need greater than initial_num_faces.")
+                "The maximum face number must > the initial face number.")
         if self.options["obj_save_modulo"] <= 0:
-            errors.append("the number how often to save need > 0")
+            errors.append("the number how often to save must > 0")
+        if self.options["min_num_samples"] <= 0:
+            errors.append("The minimum number of samples must > 0. ")
+        if self.options["max_num_samples"] <= self.options["min_num_samples"]:
+            errors.append("The maxinum number of samples must > The mininum one")
 
         if len(errors) == 0:
             return True
@@ -713,7 +741,7 @@ class MainWindow:
     def show_message_box(self, title: str, message: list):
         message_box = gui.Dialog(title)
         em = self.window.theme.font_size
-        message_box_layout = gui.Vert(em, gui.Margins(em, em, em, em))
+        message_box_layout = gui.Vert(0, gui.Margins(em, 0.5*em, em, 0.5*em))
         for m in message:
             message_box_layout.add_child(gui.Label(m))
         ok_button = gui.Button("OK")
