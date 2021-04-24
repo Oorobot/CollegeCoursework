@@ -26,21 +26,12 @@ def from_numpy_to_o3d(vertices: np.ndarray, faces: Optional[np.ndarray]):
     return geometry
 
 
-def o3d_info(geometry) -> str:
-    info = {}
-    infomation = None
+def get_open3d_geometry_info(geometry):
+    vertices = None
+    faces = np.array([]).reshape(-1, 3)
     if geometry.get_geometry_type() == o3d.geometry.Geometry.PointCloud:
-        info["vertices"] = np.asarray(geometry.points)
-        # if geometry.has_colors():
-        #     info["vertex_colors"] = np.asarray(geometry.colors)
-        # if geometry.has_normals():
-        #     info["vertex_normals"] = np.asarray(geometry.normals)
-        infomation = "Tpye: PointCloud, Vertices: " + \
-            str(info["vertices"].shape[0])
+        vertices = np.asarray(geometry.points)
     if geometry.get_geometry_type() == o3d.geometry.Geometry.TriangleMesh:
-        info["vertices"] = np.asarray(geometry.vertices)
-        info["faces"] = np.asarray(geometry.triangles)
-        infomation = "Type: TriangleMesh, Vertices: " + \
-            str(info["vertices"].shape[0]) + \
-            " faces: " + str(info["faces"].shape[0])
-    return infomation
+        vertices = np.asarray(geometry.vertices)
+        faces = np.asarray(geometry.triangles)
+    return vertices.shape[0], faces.shape[0]

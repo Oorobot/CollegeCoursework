@@ -1,4 +1,3 @@
-from enum import Enum
 import os
 import time
 
@@ -10,8 +9,9 @@ import tensorflow as tf
 import trimesh
 import threading
 
+from .geometry_diy import Geometry_DIY
 from .settings import Settings
-from .tools import from_o3d_to_numpy, from_numpy_to_o3d
+from .tools import from_o3d_to_numpy, from_numpy_to_o3d, get_open3d_geometry_info
 from ..script.tools import Obj, remesh
 from ..model.Loss import ChamferLossLayer, ConvergenceDetector
 from ..model.Mesh import Mesh
@@ -54,12 +54,15 @@ class MainWindow:
 
     WINDOW_TRAIN = 1
     WINDOW_GEOMETRY = 2
-    
+
     MENU_FILE = 21
     MENU_EXPORTFILE = 22
     MENU_ABOUT = 23
     MENU_CONVEX_HULL = 24
     MENU_REMESH = 25
+    MENU_CLOSE_ALL = 26
+    MENU_SHOW_TRAIN = 27
+    MENU_SHOW_GEOMETRY = 28
 
     def __init__(self):
         # 渲染
@@ -68,6 +71,8 @@ class MainWindow:
         self.options = None
         # 三维模型
         self.geometry = None
+        self.train_geometry = None
+        self.geometry_test = []
         # 消息面板-显示消息
         self.message = None
         # 训练状态：True-训练中，False-未训练或训练暂停
@@ -90,8 +95,18 @@ class MainWindow:
             operation_menu = gui.Menu()
             operation_menu.add_item(
                 "Create convex hull", MainWindow.MENU_CONVEX_HULL)
-            operation_menu.add_item("Remesh:Manifold and Simplify", MainWindow.MENU_REMESH)
+            operation_menu.add_item(
+                "Remesh:Manifold and Simplify", MainWindow.MENU_REMESH)
             menubar.add_menu("Operations", operation_menu)
+
+            view_menu = gui.Menu()
+            view_menu.add_item("Close All Windows", MainWindow.MENU_CLOSE_ALL)
+            view_menu.add_separator()
+            view_menu.add_item("Show train panel", MainWindow.MENU_SHOW_TRAIN)
+            view_menu.set_checked(MainWindow.MENU_SHOW_TRAIN, True)
+            view_menu.add_item("Show Geometry panel",
+                               MainWindow.MENU_SHOW_GEOMETRY)
+            menubar.add_menu("View", view_menu)
 
             help_menu = gui.Menu()
             help_menu.add_item("About", MainWindow.MENU_ABOUT)
@@ -108,6 +123,12 @@ class MainWindow:
             MainWindow.MENU_REMESH, self._on_menu_remesh)
         self.window.set_on_menu_item_activated(
             MainWindow.MENU_ABOUT, self._on_menu_about)
+        self.window.set_on_menu_item_activated(
+            MainWindow.MENU_CLOSE_ALL, self._on_menu_close_all)
+        self.window.set_on_menu_item_activated(
+            MainWindow.MENU_SHOW_TRAIN, self._on_menu_show_train)
+        self.window.set_on_menu_item_activated(
+            MainWindow.MENU_SHOW_GEOMETRY, self._on_menu_show_geometry)
 
         # 显示“三维模型”部分
         self.display_panel = gui.SceneWidget()
@@ -120,7 +141,7 @@ class MainWindow:
         self.display_panel.scene.scene.enable_sun_light(True)
 
         # 训练模型操作面板
-        self.control_layout = gui.Vert(
+        self.options_panel = gui.Vert(
             0, gui.Margins(em*0.5, em*0.5, em*0.5, em*0.5))
         option_collapsablevert = gui.CollapsableVert(
             "Train Model", 0, gui.Margins(0.5*em, 0, 0.5*em, 0))
@@ -245,13 +266,13 @@ class MainWindow:
         max_sample_layout.add_child(
             gui.Label("The maximum number of samples:"))
         max_sample_layout.add_child(self._max_samples_num)
-        
+
         option_collapsablevert.add_child(min_sample_layout)
         option_collapsablevert.add_child(max_sample_layout)
 
         # pooling
 
-        self.control_layout.add_child(option_collapsablevert)
+        self.options_panel.add_child(option_collapsablevert)
 
         # “训练”按钮
         Train_button_layout = gui.Horiz()
@@ -264,33 +285,78 @@ class MainWindow:
         Train_button_layout.add_child(self.stop_button)
         Train_button_layout.add_child(self.Train_button)
 
-        self.control_layout.add_child(Train_button_layout)
+        self.options_panel.add_child(Train_button_layout)
 
         # 消息面板
         self.info_panel = gui.Horiz(em, gui.Margins(em, 0, em, 0))
         self.message_label = gui.Label("Welcome.")
         self.info_panel.add_child(self.message_label)
 
+        # 三维模型面板
+        self.geometry_panel = gui.Vert(
+            0, gui.Margins(em*0.5, em*0.5, em*0.5, em*0.5))
+        self.geometry_treeview = gui.TreeView()
+        self.geometry_treeview.can_select_items_with_children = False
+        self.geometry_panel.add_child(gui.Label("Geometries:"))
+        self.geometry_treeview.set_on_selection_changed(self._on_tree)
+        self.update_geometry_treeview(0)
+
+        self.geometry_panel.add_child(self.geometry_treeview)
+
         self.window.set_on_layout(self._on_layout)
         self.window.add_child(self.display_panel)
-        self.window.add_child(self.control_layout)
+        # self.window.add_child(self.options_panel)
         self.window.add_child(self.info_panel)
+        self.window.add_child(self.geometry_panel)
 
     # 主窗口布局设定
     def _on_layout(self, theme):
         r = self.window.content_rect
         self.display_panel.frame = r
-        width = min(
-            r.width, self.control_layout.calc_preferred_size(theme).width)
-        height = min(r.height,
-                     self.control_layout.calc_preferred_size(theme).height)
-        self.control_layout.frame = gui.Rect(
-            r.get_right() - width, r.y, width, height)
+        # if gui.Application.instance.menubar.is_checked(MainWindow.MENU_SHOW_GEOMETRY):
+        #     pass
+        # if gui.Application.instance.menubar.is_checked(MainWindow.MENU_SHOW_TRAIN):
+        #     width = min(
+        #         r.width, self.options_panel.calc_preferred_size(theme).width)
+        #     height = min(r.height,
+        #                  self.options_panel.calc_preferred_size(theme).height)
+        #     self.options_panel.frame = gui.Rect(
+        #         r.get_right() - width, r.y, width, height)
+
+        self.geometry_panel.frame = gui.Rect(
+            r.get_right()*0.8, r.y, r.get_right()*0.2, r.height*0.33)
+
         self.info_panel.frame = gui.Rect(
             r.x, r.y+r.height -
             self.info_panel.calc_preferred_size(theme).height,
             r.width, self.info_panel.calc_preferred_size(theme).height
         )
+    
+    def _on_tree(self,id):
+        print(id)
+        print(self.geometry_treeview.selected_item)
+
+    def update_geometry_treeview(self, type):
+        if type == 0:
+            for g in self.geometry_test:
+                id = self.geometry_treeview.add_item(
+                    self.geometry_treeview.get_root_item(), self.each_geometry_layout(g))
+                g.id = id
+        if type == 1:
+            id = self.geometry_treeview.add_item(
+                    self.geometry_treeview.get_root_item(), self.each_geometry_layout(self.geometry_test[-1]))
+            self.geometry_test[-1].id = id
+
+    def each_geometry_layout(self, geometry_diy):
+        em = self.window.theme.font_size
+        g_unit = gui.CollapsableVert(
+            geometry_diy.name, 0, gui.Margins(0, 0, 0, 0))
+        g_unit.set_is_open(False)
+        vs, fs = get_open3d_geometry_info(geometry_diy.geometry)
+        g_unit.add_child(gui.Label("vertices:"+str(vs)))
+        g_unit.add_child(gui.Label("faces:"+str(fs)))
+        return g_unit
+
 
     # 菜单栏 --> 载入文件
     def _on_menu_file(self):
@@ -337,6 +403,7 @@ class MainWindow:
         self.window.show_message_box(
             "About", "Welcome to Point2Mesh Model Visualization!!!")
 
+    # 菜单栏 --> 保存文件
     def _on_menu_export_file(self):
         file_dialog = gui.FileDialog(
             gui.FileDialog.SAVE, "Choose File to open:", self.window.theme
@@ -363,7 +430,7 @@ class MainWindow:
         self.window.close_dialog()
         self.write(path)
 
-    # 菜单栏  --> 创建凸包
+    # 菜单栏 --> 创建凸包
     def _on_menu_convex_hull(self):
         if self.geometry is not None:
             convex_hull, _ = self.geometry.compute_convex_hull()
@@ -378,7 +445,29 @@ class MainWindow:
     def _on_menu_remesh(self):
         self.show_remesh_dialog("remesh")
 
-    # 添加点云文件按钮功能
+    # 菜单栏 --> 关闭子窗口
+    def _on_menu_close_all(self):
+        gui.Application.instance.menubar.set_checked(
+            MainWindow.MENU_SHOW_TRAIN, False)
+        gui.Application.instance.menubar.set_checked(
+            MainWindow.MENU_SHOW_GEOMETRY, False)
+
+    # 菜单栏 --> 显示训练面板
+    def _on_menu_show_train(self):
+        gui.Application.instance.menubar.set_checked(
+            MainWindow.MENU_SHOW_TRAIN,
+            not gui.Application.instance.menubar.is_checked(
+                MainWindow.MENU_SHOW_TRAIN)
+        )
+
+    def _on_menu_show_geometry(self):
+        gui.Application.instance.menubar.set_checked(
+            MainWindow.MENU_SHOW_GEOMETRY,
+            not gui.Application.instance.menubar.is_checked(
+                MainWindow.MENU_SHOW_GEOMETRY)
+        )
+
+    # 训练面板 --> 添加点云文件按钮
     def _on_point_cloud_button(self):
         point_cloud_dialog = gui.FileDialog(
             gui.FileDialog.OPEN, "Select point cloud file:", self.window.theme)
@@ -403,13 +492,14 @@ class MainWindow:
         self.window.close_dialog()
         self.load_other_format_pc(path)
 
+    # 训练面板 --> 有无初始网格
     def _on_initial_mesh_status(self, is_checked):
         if is_checked:
             self.initial_mesh_layout.visible = True
         else:
             self.initial_mesh_layout.visible = False
 
-    # 添加初始网格按钮功能
+    # 训练面板 --> 添加初始网格按钮
     def _on_initial_mesh_button(self):
         initial_mesh_dialog = gui.FileDialog(
             gui.FileDialog.OPEN, "Select initial mesh file:", self.window.theme)
@@ -422,7 +512,7 @@ class MainWindow:
         self.window.close_dialog()
         self._initial_mesh.text_value = path
 
-    # 训练按钮功能
+    # 训练面板 --> 训练按钮
     def _on_train(self):
         self.options = Options.copy()
         self.options["num_subdivisions"] = self._num_epoch.int_value
@@ -446,7 +536,7 @@ class MainWindow:
             self.Train_button.enabled = False
             threading.Thread(target=self.train_model).start()
 
-    # 暂停按钮功能
+    # 训练面板 --> 暂停按钮
     def _on_stop(self):
         if self.train_status:
             self.stop_button.text = "Continue"
@@ -457,9 +547,10 @@ class MainWindow:
             self._print_message("recovery the training.")
 
     def load(self, path):
-        self.display_panel.scene.clear_geometry()
-        self.geometry = None
+        # self.display_panel.scene.clear_geometry()
+        geometry = None
         geometry_type = o3d.io.read_file_geometry_type(path)
+        geometry_name = os.path.basename(path).split(".")[0]
         mesh = None
         if geometry_type & o3d.io.CONTAINS_TRIANGLES:
             mesh = o3d.io.read_triangle_mesh(path)
@@ -472,7 +563,7 @@ class MainWindow:
                 mesh.compute_vertex_normals()
                 if len(mesh.vertex_colors) == 0:
                     mesh.paint_uniform_color([1, 1, 1])
-                self.geometry = mesh
+                geometry = mesh
             # Make sure the mesh has texture coordinates
             if not mesh.has_triangle_uvs():
                 uv = np.array([[0.0, 0.0]] * (3 * len(mesh.triangles)))
@@ -480,7 +571,7 @@ class MainWindow:
         else:
             print("[Info]", path, "appears to be a point cloud")
 
-        if self.geometry is None:
+        if geometry is None:
             cloud = None
             try:
                 cloud = o3d.io.read_point_cloud(path)
@@ -491,16 +582,21 @@ class MainWindow:
                 if not cloud.has_normals():
                     cloud.estimate_normals()
                 cloud.normalize_normals()
-                self.geometry = cloud
+                geometry = cloud
             else:
                 print("[WARNING] Failed to read points", path)
 
-        if self.geometry is not None:
+        if geometry is not None:
             try:
                 self.display_panel.scene.add_geometry(
-                    "__model__", self.geometry, self.settings.material)
-                bounds = self.geometry.get_axis_aligned_bounding_box()
-                self.display_panel.setup_camera(60, bounds, bounds.get_center())
+                    geometry_name, geometry, self.settings.material)
+                bounds = geometry.get_axis_aligned_bounding_box()
+                self.display_panel.setup_camera(
+                    60, bounds, bounds.get_center())
+                self.geometry_test.append(
+                    Geometry_DIY(-1, geometry_name, geometry))
+                self.update_geometry_treeview(1)
+                print(self.geometry_test)
             except Exception as e:
                 print(e)
 
@@ -522,7 +618,8 @@ class MainWindow:
                 self.display_panel.scene.add_geometry(
                     "__cloud__", self.geometry, self.settings.material)
                 bounds = self.geometry.get_axis_aligned_bounding_box()
-                self.display_panel.setup_camera(60, bounds, bounds.get_center())
+                self.display_panel.setup_camera(
+                    60, bounds, bounds.get_center())
             except Exception as e:
                 print(e)
         else:
@@ -569,7 +666,6 @@ class MainWindow:
             self._print_message("[Info] file is saved at: " + path)
 
     def train_model(self):
-
         point_cloud = np.loadtxt(
             fname=self.options["point_cloud"], usecols=(0, 1, 2))
         point_cloud_tf = tf.convert_to_tensor(point_cloud, dtype=tf.float32)
@@ -674,7 +770,8 @@ class MainWindow:
                 if self.train_status:
                     print_message(" ".join(message))
                 else:
-                    print_message(" ".join(message) + " [INFO] already stop the training")
+                    print_message(" ".join(message) +
+                                  " [INFO] already stop the training")
 
                 # 画布替换
                 self.geometry = from_numpy_to_o3d(
@@ -730,7 +827,8 @@ class MainWindow:
         if self.options["min_num_samples"] <= 0:
             errors.append("The minimum number of samples must > 0. ")
         if self.options["max_num_samples"] <= self.options["min_num_samples"]:
-            errors.append("The maxinum number of samples must > The mininum one")
+            errors.append(
+                "The maxinum number of samples must > The mininum one")
 
         if len(errors) == 0:
             return True
@@ -759,12 +857,14 @@ class MainWindow:
         remesh_dialog = gui.Dialog(title)
         em = self.window.theme.font_size
         layout = gui.Vert(0, gui.Margins(0.2*em, 0.5*em, 0.2*em, 0.5*em))
-        layout.add_child(gui.Label("take a triangle mesh and generate a manifold mesh."))
-        layout.add_child(gui.Label("Then,for efficiency purpose,simplify the mesh."))
-        
+        layout.add_child(
+            gui.Label("take a triangle mesh and generate a manifold mesh."))
+        layout.add_child(
+            gui.Label("Then,for efficiency purpose,simplify the mesh."))
+
         self._remesh_face_num = gui.NumberEdit(gui.NumberEdit.INT)
         self._remesh_face_num.int_value = 2000
-        face_num_layout = gui.Horiz(0, gui.Margins(0,0.5*em, 0, 0.5*em))
+        face_num_layout = gui.Horiz(0, gui.Margins(0, 0.5*em, 0, 0.5*em))
         face_num_layout.add_child(gui.Label("simplified mesh's face number:"))
         face_num_layout.add_child(self._remesh_face_num)
         layout.add_child(face_num_layout)
@@ -778,11 +878,12 @@ class MainWindow:
 
         remesh_dialog.add_child(layout)
         self.window.show_dialog(remesh_dialog)
-    
+
     def _remesh(self):
         self._dialog_cancel()
         if self.geometry is None or self.geometry.get_geometry_type() == o3d.geometry.Geometry.PointCloud:
-            self._print_message("[WARNING] There is no mesh or the geometry have no face.")
+            self._print_message(
+                "[WARNING] There is no mesh or the geometry have no face.")
         else:
             vertices, faces = from_o3d_to_numpy(self.geometry)
             new_vertices, new_faces = remesh(

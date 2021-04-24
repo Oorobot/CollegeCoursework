@@ -154,3 +154,18 @@ class Settings:
         # not a copy, so if we change the property of a material, then switch
         # to another one, then come back, the old setting will still be there.
         self.material = self._materials[Settings.LIT]
+    
+    def set_material(self, name):
+        self.material = self._materials[name]
+        self.apply_material = True
+
+    def apply_material_prefab(self, name):
+        assert (self.material.shader == Settings.LIT)
+        prefab = Settings.PREFAB[name]
+        for key, val in prefab.items():
+            setattr(self.material, "base_" + key, val)
+
+    def apply_lighting_profile(self, name):
+        profile = Settings.LIGHTING_PROFILES[name]
+        for key, val in profile.items():
+            setattr(self, key, val)
