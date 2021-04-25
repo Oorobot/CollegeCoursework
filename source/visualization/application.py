@@ -9,7 +9,7 @@ import tensorflow as tf
 import trimesh
 import threading
 
-from .geometry_diy import Geometry_DIY
+from .geometry import Geometry
 from .settings import Settings
 from .tools import from_o3d_to_numpy, from_numpy_to_o3d, get_open3d_geometry_info
 from ..script.tools import Obj, remesh
@@ -594,7 +594,7 @@ class MainWindow:
                 self.display_panel.setup_camera(
                     60, bounds, bounds.get_center())
                 self.geometry_test.append(
-                    Geometry_DIY(-1, geometry_name, geometry))
+                    Geometry(-1, geometry_name, geometry))
                 self.update_geometry_treeview(1)
                 print(self.geometry_test)
             except Exception as e:
