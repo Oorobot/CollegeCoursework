@@ -9,46 +9,13 @@ import tensorflow as tf
 import trimesh
 import threading
 
-from trimesh import geometry
-
-from .geometry import GeometryInfo, GeometryInfos
+from .options import Options
 from .settings import Settings
+from .geometry import GeometryInfo, GeometryInfos
+from ..model.Mesh import Mesh
 from ..script.tools import Obj, remesh
 from ..model.Loss import ChamferLossLayer, ConvergenceDetector
-from ..model.Mesh import Mesh
 from ..model.PointToMeshModel import PointToMeshModel, get_vertex_features
-
-
-Options = {
-    # 点云文件
-    "point_cloud": None,
-    # 结果保存位置
-    "save_location": None,
-    # 初始网格模型（可选）
-    "initial_mesh": None,
-
-    # 训练轮次 或 网格细分等级
-    "num_subdivisions": 6,
-    # 每轮或每个等级迭代次数
-    "num_iterations": 1000,
-    # 相邻训练轮次之间网格面的倍数
-    "subdivision_multiplier": 1.5,
-
-    # 初始网格的面数
-    "initial_num_faces": 1000,
-    # 最大的网格模型面数
-    "max_num_faces": 10000,
-
-    # 使用beamgap的频率（使用次数/每轮的迭代数），-1表示不使用
-    "beamgap_modulo": -1,
-    # 保存结果的频率（保存次数/每轮迭代数）
-    "obj_save_modulo": 5,
-
-    # 对模型进行采样的数量（与当前迭代数有关、线性关系）
-    "min_num_samples": 10000,
-    "max_num_samples": 16000,
-    "pooling": [None, None, None, None, None, None],
-}
 
 
 class MainWindow:
@@ -65,16 +32,11 @@ class MainWindow:
     MENU_SHOW_TRAIN = 27
     MENU_SHOW_GEOMETRY = 28
 
-    settings: None
-    options: dict
-    geometry_infos : GeometryInfos
-
-
     def __init__(self):
         # 渲染
         self.settings = Settings()
         # 参数
-        self.options = None
+        self.options = Options()
         # 三维模型
         self.geometry = None
         self.geometry_infos = GeometryInfos()
@@ -197,15 +159,15 @@ class MainWindow:
 
         # 参数布局1（基础）
         self._num_epoch = gui.NumberEdit(gui.NumberEdit.INT)
-        self._num_epoch.int_value = Options["num_subdivisions"]
+        self._num_epoch.int_value = self.options.num_subdivisions
         self._num_epoch.set_limits(1, 99)
 
         self._num_iterations = gui.NumberEdit(gui.NumberEdit.INT)
-        self._num_iterations.int_value = Options["num_iterations"]
+        self._num_iterations.int_value = self.options.num_iterations
         self._num_iterations.set_limits(100, 10000)
 
         self._epoch_multiplier = gui.NumberEdit(gui.NumberEdit.DOUBLE)
-        self._epoch_multiplier.double_value = Options["subdivision_multiplier"]
+        self._epoch_multiplier.double_value = self.options.subdivision_multiplier
         self._epoch_multiplier.set_limits(1.1, 10.0)
 
         train_parameters_layout = gui.Horiz()
@@ -226,10 +188,10 @@ class MainWindow:
 
         # 参数布局2（面数）
         self._initial_faces_num = gui.NumberEdit(gui.NumberEdit.INT)
-        self._initial_faces_num.int_value = Options["initial_num_faces"]
+        self._initial_faces_num.int_value = self.options.initial_num_faces
         self._initial_faces_num.set_limits(500, 5000)
         self._max_faces_num = gui.NumberEdit(gui.NumberEdit.INT)
-        self._max_faces_num.int_value = Options["max_num_faces"]
+        self._max_faces_num.int_value = self.options.max_num_faces
         self._max_faces_num.set_limits(10000, 1000000)
 
         face_parameters_layout_0 = gui.Horiz()
@@ -246,7 +208,7 @@ class MainWindow:
 
         # 参数布局3（保存结果）
         self._save_obj = gui.NumberEdit(gui.NumberEdit.INT)
-        self._save_obj.int_value = Options["obj_save_modulo"]
+        self._save_obj.int_value = self.options.obj_save_modulo
         self._save_obj.set_limits(1, 100)
 
         save_parameters_layout = gui.Horiz()
@@ -257,9 +219,9 @@ class MainWindow:
 
         # 参数布局4（采样）
         self._min_samples_num = gui.NumberEdit(gui.NumberEdit.INT)
-        self._min_samples_num.int_value = Options["min_num_samples"]
+        self._min_samples_num.int_value = self.options.min_num_samples
         self._max_samples_num = gui.NumberEdit(gui.NumberEdit.INT)
-        self._max_samples_num.int_value = Options["max_num_samples"]
+        self._max_samples_num.int_value = self.options.max_num_samples
 
         option_collapsablevert.add_child(
             gui.Label("---range to lineralyinterp between when computing samples---"))
@@ -293,7 +255,7 @@ class MainWindow:
         self.options_panel.add_child(Train_button_layout)
 
         # 消息面板
-        self.info_panel = gui.Horiz(em, gui.Margins(em, 0, em, 0))
+        self.info_panel = gui.Horiz(0, gui.Margins(em, 0, em, 0))
         self.message_label = gui.Label("Welcome.")
         self.info_panel.add_child(self.message_label)
 
@@ -309,54 +271,115 @@ class MainWindow:
 
         self.window.set_on_layout(self._on_layout)
         self.window.add_child(self.display_panel)
-        # self.window.add_child(self.options_panel)
-        self.window.add_child(self.info_panel)
         self.window.add_child(self.geometry_panel)
+        self.window.add_child(self.options_panel)
+        self.window.add_child(self.info_panel)
 
     # 主窗口布局设定
     def _on_layout(self, theme):
         r = self.window.content_rect
         self.display_panel.frame = r
-        # if gui.Application.instance.menubar.is_checked(MainWindow.MENU_SHOW_GEOMETRY):
-        #     pass
-        # if gui.Application.instance.menubar.is_checked(MainWindow.MENU_SHOW_TRAIN):
-        #     width = min(
-        #         r.width, self.options_panel.calc_preferred_size(theme).width)
-        #     height = min(r.height,
-        #                  self.options_panel.calc_preferred_size(theme).height)
-        #     self.options_panel.frame = gui.Rect(
-        #         r.get_right() - width, r.y, width, height)
+        panel_show = []
+        panel_show.append(gui.Application.instance.menubar.is_checked(
+            MainWindow.MENU_SHOW_GEOMETRY))
+        panel_show.append(gui.Application.instance.menubar.is_checked(
+            MainWindow.MENU_SHOW_TRAIN))
+        if panel_show[0] and panel_show[1]:
+            width = min(
+                r.width, self.options_panel.calc_preferred_size(theme).width)
+            height = min(r.height,
+                         self.options_panel.calc_preferred_size(theme).height)
 
-        self.geometry_panel.frame = gui.Rect(
-            r.get_right()*0.8, r.y, r.get_right()*0.2, r.height*0.33)
+            self.geometry_panel.frame = gui.Rect(
+                r.get_right() - width, r.y, width, r.height*0.33)
+            self.options_panel.frame = gui.Rect(
+                r.get_right() - width, r.y + r.height*0.33, width, height)
+        elif panel_show[0]:
+            self.geometry_panel.frame = gui.Rect(
+                r.get_right()*0.8, r.y, r.get_right()*0.2, r.height*0.33)
+            self.options_panel.frame = gui.Rect(
+                r.x + r.width, r.y + r.height, 0, 0)
+        elif panel_show[1]:
+            width = min(
+                r.width, self.options_panel.calc_preferred_size(theme).width)
+            height = min(
+                r.height, self.options_panel.calc_preferred_size(theme).height)
+            self.geometry_panel.frame = gui.Rect(
+                r.x + r.width, r.y + r.height, 0, 0)
+            self.options_panel.frame = gui.Rect(
+                r.get_right() - width, r.y, width, height)
+        else:
+            self.geometry_panel.frame = gui.Rect(
+                r.x + r.width, r.y + r.height, 0, 0)
+            self.options_panel.frame = gui.Rect(
+                r.x + r.width, r.y + r.height, 0, 0)
 
         self.info_panel.frame = gui.Rect(
-            r.x, r.y+r.height -
-            self.info_panel.calc_preferred_size(theme).height,
+            r.x,
+            r.y + r.height - self.info_panel.calc_preferred_size(theme).height,
             r.width, self.info_panel.calc_preferred_size(theme).height
         )
-    
-    def _on_tree(self,id):
-        print(id)
-        print(self.geometry_treeview.selected_item)
 
-    def update_geometry_treeview(self, type):
-        if type == 1:
-            ID = self.geometry_treeview.add_item(
-                self.geometry_treeview.get_root_item(), self.one_geometry_layout(self.geometry_infos.getAll[-1]))
-            self.geometry_infos.getAll[-1].set_id(ID)
-            self.geometry_treeview.selected_item = ID
+    def _on_tree(self, id):
+        pass
 
-    def one_geometry_layout(self, geometry_info: GeometryInfo):
-        g_unit = gui.CollapsableVert(
+    def add_geometry_widget(self):
+        ID = self.geometry_treeview.add_item(
+            self.geometry_treeview.get_root_item(), self.geometry_widget(self.geometry_infos.getAll()[-1]))
+        self.geometry_infos.getAll()[-1].set_id(ID)
+        self.geometry_treeview.selected_item = ID
+
+    def remove_on_child_thread(self):
+        threading.Thread(target=self.remove_geometry_widget).start()
+
+    def remove_geometry_widget(self):
+        ID = self.geometry_treeview.selected_item
+        self.geometry_treeview.selected_item = 0
+        self.geometry_treeview.remove_item(ID)
+        g = self.geometry_infos.get(ID)
+        self.display_panel.scene.remove_geometry(g.name)
+        self.geometry_infos.remove(ID)
+        if len(self.geometry_infos.geometrt_infos) > 0:
+            self.geometry_treeview.selected_item = self.geometry_infos.geometrt_infos[0].id
+        else:
+            self.geometry_treeview.selected_item = 0
+
+    def geometry_widget(self, geometry_info: GeometryInfo):
+        widget = gui.CollapsableVert(
             geometry_info.name, 0, gui.Margins(0, 0, 0, 0))
-        g_unit.set_is_open(False)
-        g_unit.add_child(gui.Label("vertices:"+str(geometry_info.num_vertices)))
-        g_unit.add_child(gui.Label("faces:"+str(geometry_info.num_faces)))
-        return g_unit
+        widget.set_is_open(False)
 
+        horiz_1 = gui.Horiz(0, gui.Margins(0, 0, 0, 0))
+        horiz_1.add_child(
+            gui.Label("vertices:"+str(geometry_info.num_vertices)))
+        button_1 = gui.Button("delete")
+        button_1.horizontal_padding_em = 0.5
+        button_1.vertical_padding_em = 0
+        button_1.set_on_clicked(self.remove_on_child_thread)
+        horiz_1.add_stretch()
+        horiz_1.add_child(button_1)
+        widget.add_child(horiz_1)
+
+        horiz_2 = gui.Horiz(0, gui.Margins(0, 0, 0, 0))
+        horiz_2.add_child(gui.Label("faces:"+str(geometry_info.num_faces)))
+        button_2 = gui.Button("hide/show")
+        button_2.horizontal_padding_em = 1
+        button_2.vertical_padding_em = 0
+        button_2.set_on_clicked(self._on_geometry_show_hide)
+        horiz_2.add_stretch()
+        horiz_2.add_child(button_2)
+        widget.add_child(horiz_2)
+
+        return widget
+
+    def _on_geometry_show_hide(self):
+        ID = self.geometry_treeview.selected_item
+        g_info = self.geometry_infos.get(ID)
+        self.display_panel.scene.show_geometry(g_info.name, not g_info.visible)
+        g_info.visible = not g_info.visible
 
     # 菜单栏 --> 载入文件
+
     def _on_menu_file(self):
         file_dialog = gui.FileDialog(
             gui.FileDialog.OPEN, "Choose File to open:", self.window.theme
@@ -432,17 +455,17 @@ class MainWindow:
     def _on_menu_convex_hull(self):
         ID = self.geometry_treeview.selected_item
         geometry_info = self.geometry_infos.get(ID)
-        if geometry_info.geometry is not None:
+        if geometry_info is not None and geometry_info.geometry is not None:
             convex_hull, _ = geometry_info.geometry.compute_convex_hull()
 
             temp = GeometryInfo(None)
-            temp.init(geometry.name + "_convex_hull", convex_hull, True)
+            temp.init(geometry_info.name + "_convex_hull", convex_hull, True)
             self.geometry_infos.push_back(temp)
-            self.update_geometry_treeview(1)
+            self.add_geometry_widget()
 
             self.display_panel.scene.add_geometry(
                 temp.name, temp.geometry, self.settings.material)
-            
+
             self._print_message("[INFO] already create convex_hull")
         else:
             self._print_message("[WARNING] There is no Mesh.")
@@ -456,6 +479,7 @@ class MainWindow:
             MainWindow.MENU_SHOW_TRAIN, False)
         gui.Application.instance.menubar.set_checked(
             MainWindow.MENU_SHOW_GEOMETRY, False)
+        self.window.set_needs_layout()
 
     # 菜单栏 --> 显示训练面板
     def _on_menu_show_train(self):
@@ -464,6 +488,7 @@ class MainWindow:
             not gui.Application.instance.menubar.is_checked(
                 MainWindow.MENU_SHOW_TRAIN)
         )
+        self.window.set_needs_layout()
 
     def _on_menu_show_geometry(self):
         gui.Application.instance.menubar.set_checked(
@@ -471,6 +496,7 @@ class MainWindow:
             not gui.Application.instance.menubar.is_checked(
                 MainWindow.MENU_SHOW_GEOMETRY)
         )
+        self.window.set_needs_layout()
 
     # 训练面板 --> 添加点云文件按钮
     def _on_point_cloud_button(self):
@@ -519,27 +545,35 @@ class MainWindow:
 
     # 训练面板 --> 训练按钮
     def _on_train(self):
-        self.options = Options.copy()
-        self.options["num_subdivisions"] = self._num_epoch.int_value
-        self.options["num_iterations"] = self._num_iterations.int_value
-        self.options["subdivision_multiplier"] = self._epoch_multiplier.double_value
-        self.options["initial_num_faces"] = self._initial_faces_num.int_value
-        self.options["max_num_faces"] = self._max_faces_num.int_value
-        self.options["obj_save_modulo"] = self._save_obj.int_value
-        self.options["min_num_samples"] = self._min_samples_num.int_value
-        self.options["max_num_samples"] = self._max_samples_num.int_value
+
+        self.options.init(
+            num_subdivisions=self._num_epoch.int_value,
+            num_iterations=self._num_iterations.int_value,
+            subdivision_multiplier=self._epoch_multiplier.double_value,
+            initial_num_faces=self._initial_faces_num.int_value,
+            max_num_faces=self._max_faces_num.int_value,
+            obj_save_modulo=self._save_obj.int_value,
+            min_num_samples=self._min_samples_num.int_value,
+            max_num_samples=self._max_samples_num.int_value
+        )
         if len(self._point_cloud.text_value) != 0:
-            self.options["point_cloud"] = self._point_cloud.text_value
-            self.options["save_location"] = self._result_folder.text_value
+            self.options.point_cloud = self._point_cloud.text_value
+            self.options.save_location = self._result_folder.text_value
         if self.initial_mesh_status.checked and len(self._initial_mesh.text_value) != 0:
-            self.options["initial_mesh"] = self._initial_mesh.text_value
+            self.options.initial_mesh = self._initial_mesh.text_value
+        else:
+            self.options.initial_mesh = None
+
         print(self.options)
 
-        if self._check_train_parameters():
+        warnings = self.options.validate()
+        if len(warnings) == 0:
             self.train_status = True
             self.stop_button.visible = True
             self.Train_button.enabled = False
             threading.Thread(target=self.train_model).start()
+        else:
+            self.show_message_box("WARNING", warnings)
 
     # 训练面板 --> 暂停按钮
     def _on_stop(self):
@@ -562,33 +596,33 @@ class MainWindow:
                     60, bounds, bounds.get_center())
 
                 self.geometry_infos.push_back(geometry_info)
-                self.update_geometry_treeview(1)
+                self.add_geometry_widget()
                 self._print_message("[Info] Successfully read " + path)
-                
+
             except Exception as e:
                 print(e)
                 self._print_message("[ERROR] Failure to read " + path)
 
     def write(self, path: str):
-        if len(self.geometry_infos) != 0:
+        if len(self.geometry_infos.geometrt_infos) != 0:
             ID = self.geometry_treeview.selected_item
-            for g in self.geometry_infos.getAll():
-                if g.id == ID:
-                    result = g.write(path)
-                    if result:
-                        self._print_message("[INFO] Successfully write "+path)
-                    else:
-                        self._print_message("[ERROR] Failure to write "+path)
-                    break
+            g_info = self.geometry_infos.get(ID)
+            if g_info.write(path):
+                self._print_message("[INFO] Successfully write "+path)
+            else:
+                self._print_message("[ERROR] Failure to write "+path)
+        else:
+            self._print_message("[WARNING] please choose a geometry.")
 
     def train_model(self):
+
         point_cloud = np.loadtxt(
-            fname=self.options["point_cloud"], usecols=(0, 1, 2))
+            fname=self.options.point_cloud, usecols=(0, 1, 2))
         point_cloud_tf = tf.convert_to_tensor(point_cloud, dtype=tf.float32)
 
         def save_mesh(filename, vertices, faces):
             Obj.save(os.path.join(
-                self.options["save_location"], filename), vertices, faces)
+                self.options.save_location, filename), vertices, faces)
 
         def print_message(message: str):
             self.message = message
@@ -597,20 +631,20 @@ class MainWindow:
                 self.window, self._print_message_on_child_thread)
 
         # 初始网格
-        if self.options["initial_mesh"]:
+        if self.options.initial_mesh:
             remeshed_vertices, remeshed_faces = Obj.load(
-                self.options["initial_mesh"])
+                self.options.initial_mesh)
         else:
             convex_hull = trimesh.convex.convex_hull(point_cloud)
             remeshed_vertices, remeshed_faces = remesh(
-                convex_hull.vertices, convex_hull.faces, self.options["initial_num_faces"]
+                convex_hull.vertices, convex_hull.faces, self.options.initial_num_faces
             )
         save_mesh("tmp_initial_mesh.obj", remeshed_vertices, remeshed_faces)
 
         # 模型
         chamfer_loss = ChamferLossLayer()
         optimizer = tf.keras.optimizers.Adam(learning_rate=0.00005)
-        num_subdivisions = self.options["num_subdivisions"]
+        num_subdivisions = self.options.num_subdivisions
         new_vertices = None
 
         for subdivision_level in range(num_subdivisions):
@@ -621,7 +655,7 @@ class MainWindow:
                     raise Exception("Could not find vertices to subdivide.")
                 else:
                     new_face_num = min(
-                        self.options["max_num_faces"], self.options["subdivision_multiplier"] *
+                        self.options.max_num_faces, self.options.subdivision_multiplier *
                         remeshed_faces.shape[0]
                     )
 
@@ -635,7 +669,7 @@ class MainWindow:
 
             mesh = Mesh(remeshed_vertices, remeshed_faces)
             model = PointToMeshModel(
-                mesh.edges.shape[0], self.options["pooling"])
+                mesh.edges.shape[0], self.options.pooling)
 
             # 随机特征值
             in_features = tf.random.uniform(
@@ -643,7 +677,7 @@ class MainWindow:
 
             old_vertices = tf.convert_to_tensor(
                 remeshed_vertices, dtype=tf.float32)
-            num_iterations = self.options["num_iterations"]
+            num_iterations = self.options.num_iterations
             for iteration in range(num_iterations):
                 iteration_start_time = time.time()
                 with tf.GradientTape() as tape:
@@ -653,9 +687,9 @@ class MainWindow:
                         get_vertex_features(mesh, features)
                     #计算loss值
                     samples_num = int(
-                        self.options["min_num_samples"]
-                        + (iteration / self.options["num_iterations"])
-                        * (self.options["max_num_samples"] - self.options["min_num_samples"])
+                        self.options.min_num_samples
+                        + (iteration / self.options.num_iterations)
+                        * (self.options.max_num_samples - self.options.min_num_samples)
                     )
                     surface_sample = mesh.sample_surface(
                         new_vertices, samples_num
@@ -670,7 +704,7 @@ class MainWindow:
                     zip(gradients, model.trainable_variables))
 
                 # 保存模型
-                save_obj = self.options["obj_save_modulo"]
+                save_obj = self.options.obj_save_modulo
                 if iteration % save_obj == 0 or converged or iteration == num_iterations - 1:
                     save_mesh(
                         f"tmp_{str(subdivision_level).zfill(2)}_{str(iteration).zfill(3)}.obj",
@@ -721,37 +755,6 @@ class MainWindow:
     def _print_message(self, message: str):
         self.message_label.text = message
 
-    # 校验训练参数
-    def _check_train_parameters(self) -> bool:
-        errors = []
-        if self.options["point_cloud"] == None or len(self.options["point_cloud"]) == 0:
-            errors.append("point cloud is empty.")
-        if self.options["num_subdivisions"] <= 0:
-            errors.append("num of epochs must > 0.")
-        if self.options["num_iterations"] <= 0:
-            errors.append("num of iterations must > 0.")
-        if self.options["subdivision_multiplier"] <= 1:
-            errors.append(
-                "the multiple of face number of two adjacent epoch must > 1.0.")
-        if self.options["initial_num_faces"] < 1000:
-            errors.append("suggest The initial face number > 1000.")
-        if self.options["max_num_faces"] < self.options["initial_num_faces"]:
-            errors.append(
-                "The maximum face number must > the initial face number.")
-        if self.options["obj_save_modulo"] <= 0:
-            errors.append("the number how often to save must > 0")
-        if self.options["min_num_samples"] <= 0:
-            errors.append("The minimum number of samples must > 0. ")
-        if self.options["max_num_samples"] <= self.options["min_num_samples"]:
-            errors.append(
-                "The maxinum number of samples must > The mininum one")
-
-        if len(errors) == 0:
-            return True
-        else:
-            self.show_message_box("errors", errors)
-            return False
-
     def show_message_box(self, title: str, message: list):
         message_box = gui.Dialog(title)
         em = self.window.theme.font_size
@@ -799,7 +802,7 @@ class MainWindow:
         self._dialog_cancel()
         ID = self.geometry_treeview.selected_item
         geometry_info = self.geometry_infos.get(ID)
-        if geometry_info.geometry is None or geometry_info.geometry.get_geometry_type() == o3d.geometry.Geometry.PointCloud:
+        if geometry_info is None or geometry_info.geometry is None or geometry_info.geometry.get_geometry_type() == o3d.geometry.Geometry.PointCloud:
             self._print_message(
                 "[WARNING] There is no mesh or the geometry have no face.")
         else:
@@ -809,8 +812,9 @@ class MainWindow:
 
             g = GeometryInfo.from_numpy(new_vertices, new_faces)
             temp = GeometryInfo(None)
-            temp.init(geometry.name+"_manifold_simplied", g, True)
+            temp.init(geometry_info.name+"_manifold_simplied", g, True)
             self.geometry_infos.push_back(temp)
+            self.add_geometry_widget()
 
             self.display_panel.scene.add_geometry(
                 temp.name, temp.geometry, self.settings.material)

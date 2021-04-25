@@ -222,7 +222,7 @@ class GeometryInfos():
                 geometry_info = g_info
                 break
         if geometry_info is not None:
-            self.geometries.remove(geometry_info)
+            self.geometrt_infos.remove(geometry_info)
             self.geometry_names.remove(geometry_info.name)
         else:
             print("[WARNING] no such geometry")
@@ -237,23 +237,3 @@ class GeometryInfos():
     
     def getAll(self) -> List[GeometryInfo]:
         return self.geometrt_infos
-
-
-# g1 = Geometry("data/airplane_0003.xyz")
-# g2 = Geometry("data/results/airplane_0003/tmp_00_000.obj")
-# print(0)
-# g1.write("1.obj")
-# g2.write("1.xyz")
-
-# gs = Geometries()
-# g1 = Geometry("data/airplane_0003.xyz")
-# g1.id = 1
-# g2 = Geometry("data/airplane_0003.xyz")
-# g2.id = 2
-# g3 = Geometry("data/airplane_0003.xyz")
-# g3.id =3
-# gs.push_back(g1)
-# gs.push_back(g2)
-# gs.push_back(g3)
-# gs.remove(2)
-# gs.remove(1)
