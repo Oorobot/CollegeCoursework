@@ -1,12 +1,11 @@
 import os
-from tokenize import Number
 from typing import List, Optional
 
 import numpy as np
 import open3d as o3d
 
 
-class Geometry():
+class GeometryInfo():
     id: int
     file: str
     name: str
@@ -15,20 +14,48 @@ class Geometry():
     num_vertices: int
     num_faces: int
 
-    def __init__(self, path: str) -> None:
+    def __init__(self, path:str) -> None:
         '''
-            path: 文件路径
+            path: 文件路径, path = None ,则需在使用init()函数
         '''
         self.id = -1
-        self.file = os.path.basename(path)
-        self.name = self.file.split(".")[0]
         self.visible = True
-        self.read(path)
+        self.file = ""
+        self.name = ""
+        self.path = ""
+        self.geometry = None
+        if path is not None:
+            self.read(path)
 
     def __str__(self) -> str:
         return f"[{self.__class__.__name__}: id={self.id}, name={self.name}, geometry={self.geometry}, visible={self.visible}]"
+    
+    def init(self, name: str, geometry, visible: bool) -> bool:
+        if geometry is None:
+            print("[ERROR] geometry is None.")
+            return False
+        else:
+            self.name = name
+            self.geometry = geometry
+            self.visible = visible
+            type = self.geometry.get_geometry_type()
+            if type == o3d.geometry.Geometry.PointCloud:
+                self.num_vertices = len(geometry.points)
+                self.num_faces = 0
+            if type == o3d.geometry.Geometry.TriangleMesh:
+                self.num_vertices = len(geometry.vertices)
+                self.num_faces = len(geometry.triangles)
+            return True
+
+    def set_id(self, id: int):
+        self.id = id
 
     def read(self, path: str) -> bool:
+
+        self.path = path
+        self.file = os.path.basename(path)
+        self.name = self.file.split(".")[0]
+
         geometry = None
         geometry_type = o3d.io.read_file_geometry_type(path)
         mesh = None
@@ -110,14 +137,15 @@ class Geometry():
                     return point_cloud(path, self.geometry)
                 else:
                     faces = np.array([]).reshape(-1, 3)
-                    return mesh(path, Geometry.from_numpy(vertices, faces))
+                    return mesh(path, GeometryInfo.from_numpy(vertices, faces))
             else:
                 if suffix in mesh_file:
                     return mesh(path, self.geometry)
                 else:
-                    return point_cloud(path, Geometry.from_numpy(vertices, None))
+                    return point_cloud(path, GeometryInfo.from_numpy(vertices, None))
 
     def to_numpy(self):
+        """convert self.geometry(o3d.geometry.Geometry.PointCloud or TriangleMesh) to numpy"""
 
         assert self.geometry is not None
         type = self.geometry.get_geometry_type()
@@ -150,26 +178,28 @@ class Geometry():
         return geometry
 
 
-class Geometries():
-    geometries: List[Geometry]
+class GeometryInfos():
+    geometrt_infos: List[GeometryInfo]
     geometry_names = List[str]
 
     def __init__(self) -> None:
-        self.geometries = []
+        self.geometrt_infos = []
         self.geometry_names = []
 
-    def push_back(self, geometry: Geometry):
-        if not isinstance(geometry, Geometry):
+    def push_back(self, geometry_info: GeometryInfo):
+        if not isinstance(geometry_info, GeometryInfo):
             print("[WARNING] 添加元素类型错误")
         else:
-            self.check_name(geometry)
-            self.geometries.append(geometry)
+            self.check_name(geometry_info)
+            self.geometrt_infos.append(geometry_info)
 
     # 检测是否重名，若重名则修改
-    def check_name(self, geometry: Geometry):
-        name = geometry.name
+    def check_name(self, geometry_info: GeometryInfo):
+        name = geometry_info.name
         while name in self.geometry_names:
-            if name.endswith(")"):
+            if not name.endswith(")"):
+                name = name + "(1)"
+            else:
                 try:
                     left = name.rindex("(")
                     number = name[left+1:len(name)-1]
@@ -183,6 +213,30 @@ class Geometries():
                     name = name + "(1)"
                     pass
         self.geometry_names.append(name)
+        geometry_info.name = name
+
+    def remove(self, id: int):
+        geometry_info = None
+        for g_info in self.geometrt_infos:
+            if g_info.id == id:
+                geometry_info = g_info
+                break
+        if geometry_info is not None:
+            self.geometries.remove(geometry_info)
+            self.geometry_names.remove(geometry_info.name)
+        else:
+            print("[WARNING] no such geometry")
+
+    def get(self, id: int) -> GeometryInfo:
+        geometry_info = None
+        for g_info in self.geometrt_infos:
+            if g_info.id == id:
+                geometry_info = g_info
+                break
+        return geometry_info
+    
+    def getAll(self) -> List[GeometryInfo]:
+        return self.geometrt_infos
 
 
 # g1 = Geometry("data/airplane_0003.xyz")
@@ -192,7 +246,14 @@ class Geometries():
 # g2.write("1.xyz")
 
 # gs = Geometries()
-# g1.name = "1)"
+# g1 = Geometry("data/airplane_0003.xyz")
+# g1.id = 1
+# g2 = Geometry("data/airplane_0003.xyz")
+# g2.id = 2
+# g3 = Geometry("data/airplane_0003.xyz")
+# g3.id =3
 # gs.push_back(g1)
-# gs.push_back(g1)
-# gs.push_back(g1)
+# gs.push_back(g2)
+# gs.push_back(g3)
+# gs.remove(2)
+# gs.remove(1)

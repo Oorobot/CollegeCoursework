@@ -9,9 +9,10 @@ import tensorflow as tf
 import trimesh
 import threading
 
-from .geometry import Geometry
+from trimesh import geometry
+
+from .geometry import GeometryInfo, GeometryInfos
 from .settings import Settings
-from .tools import from_o3d_to_numpy, from_numpy_to_o3d, get_open3d_geometry_info
 from ..script.tools import Obj, remesh
 from ..model.Loss import ChamferLossLayer, ConvergenceDetector
 from ..model.Mesh import Mesh
@@ -64,6 +65,11 @@ class MainWindow:
     MENU_SHOW_TRAIN = 27
     MENU_SHOW_GEOMETRY = 28
 
+    settings: None
+    options: dict
+    geometry_infos : GeometryInfos
+
+
     def __init__(self):
         # 渲染
         self.settings = Settings()
@@ -71,8 +77,7 @@ class MainWindow:
         self.options = None
         # 三维模型
         self.geometry = None
-        self.train_geometry = None
-        self.geometry_test = []
+        self.geometry_infos = GeometryInfos()
         # 消息面板-显示消息
         self.message = None
         # 训练状态：True-训练中，False-未训练或训练暂停
@@ -299,7 +304,6 @@ class MainWindow:
         self.geometry_treeview.can_select_items_with_children = False
         self.geometry_panel.add_child(gui.Label("Geometries:"))
         self.geometry_treeview.set_on_selection_changed(self._on_tree)
-        self.update_geometry_treeview(0)
 
         self.geometry_panel.add_child(self.geometry_treeview)
 
@@ -337,24 +341,18 @@ class MainWindow:
         print(self.geometry_treeview.selected_item)
 
     def update_geometry_treeview(self, type):
-        if type == 0:
-            for g in self.geometry_test:
-                id = self.geometry_treeview.add_item(
-                    self.geometry_treeview.get_root_item(), self.each_geometry_layout(g))
-                g.id = id
         if type == 1:
-            id = self.geometry_treeview.add_item(
-                    self.geometry_treeview.get_root_item(), self.each_geometry_layout(self.geometry_test[-1]))
-            self.geometry_test[-1].id = id
+            ID = self.geometry_treeview.add_item(
+                self.geometry_treeview.get_root_item(), self.one_geometry_layout(self.geometry_infos.getAll[-1]))
+            self.geometry_infos.getAll[-1].set_id(ID)
+            self.geometry_treeview.selected_item = ID
 
-    def each_geometry_layout(self, geometry_diy):
-        em = self.window.theme.font_size
+    def one_geometry_layout(self, geometry_info: GeometryInfo):
         g_unit = gui.CollapsableVert(
-            geometry_diy.name, 0, gui.Margins(0, 0, 0, 0))
+            geometry_info.name, 0, gui.Margins(0, 0, 0, 0))
         g_unit.set_is_open(False)
-        vs, fs = get_open3d_geometry_info(geometry_diy.geometry)
-        g_unit.add_child(gui.Label("vertices:"+str(vs)))
-        g_unit.add_child(gui.Label("faces:"+str(fs)))
+        g_unit.add_child(gui.Label("vertices:"+str(geometry_info.num_vertices)))
+        g_unit.add_child(gui.Label("faces:"+str(geometry_info.num_faces)))
         return g_unit
 
 
@@ -432,13 +430,20 @@ class MainWindow:
 
     # 菜单栏 --> 创建凸包
     def _on_menu_convex_hull(self):
-        if self.geometry is not None:
-            convex_hull, _ = self.geometry.compute_convex_hull()
+        ID = self.geometry_treeview.selected_item
+        geometry_info = self.geometry_infos.get(ID)
+        if geometry_info.geometry is not None:
+            convex_hull, _ = geometry_info.geometry.compute_convex_hull()
+
+            temp = GeometryInfo(None)
+            temp.init(geometry.name + "_convex_hull", convex_hull, True)
+            self.geometry_infos.push_back(temp)
+            self.update_geometry_treeview(1)
+
             self.display_panel.scene.add_geometry(
-                "convex_hull", convex_hull, self.settings.material)
-            vertices, faces = from_o3d_to_numpy(convex_hull)
-            self._print_message("[INFO] already create convex_hull, vertices: " +
-                                str(vertices.shape[0]) + ", faces: " + str(faces.shape[0]))
+                temp.name, temp.geometry, self.settings.material)
+            
+            self._print_message("[INFO] already create convex_hull")
         else:
             self._print_message("[WARNING] There is no Mesh.")
 
@@ -490,7 +495,7 @@ class MainWindow:
         self._result_folder.text_value = result_path
 
         self.window.close_dialog()
-        self.load_other_format_pc(path)
+        self.load(path)
 
     # 训练面板 --> 有无初始网格
     def _on_initial_mesh_status(self, is_checked):
@@ -547,123 +552,34 @@ class MainWindow:
             self._print_message("recovery the training.")
 
     def load(self, path):
-        # self.display_panel.scene.clear_geometry()
-        geometry = None
-        geometry_type = o3d.io.read_file_geometry_type(path)
-        geometry_name = os.path.basename(path).split(".")[0]
-        mesh = None
-        if geometry_type & o3d.io.CONTAINS_TRIANGLES:
-            mesh = o3d.io.read_triangle_mesh(path)
-        if mesh is not None:
-            if len(mesh.triangles) == 0:
-                print(
-                    "[WARNING] Contains 0 triangles, will read as point cloud")
-                mesh = None
-            else:
-                mesh.compute_vertex_normals()
-                if len(mesh.vertex_colors) == 0:
-                    mesh.paint_uniform_color([1, 1, 1])
-                geometry = mesh
-            # Make sure the mesh has texture coordinates
-            if not mesh.has_triangle_uvs():
-                uv = np.array([[0.0, 0.0]] * (3 * len(mesh.triangles)))
-                mesh.triangle_uvs = o3d.utility.Vector2dVector(uv)
-        else:
-            print("[Info]", path, "appears to be a point cloud")
-
-        if geometry is None:
-            cloud = None
-            try:
-                cloud = o3d.io.read_point_cloud(path)
-            except Exception:
-                pass
-            if cloud is not None:
-                print("[Info] Successfully read", path)
-                if not cloud.has_normals():
-                    cloud.estimate_normals()
-                cloud.normalize_normals()
-                geometry = cloud
-            else:
-                print("[WARNING] Failed to read points", path)
-
-        if geometry is not None:
+        geometry_info = GeometryInfo(path)
+        if geometry_info.geometry is not None:
             try:
                 self.display_panel.scene.add_geometry(
-                    geometry_name, geometry, self.settings.material)
-                bounds = geometry.get_axis_aligned_bounding_box()
+                    geometry_info.name, geometry_info.geometry, self.settings.material)
+                bounds = geometry_info.geometry.get_axis_aligned_bounding_box()
                 self.display_panel.setup_camera(
                     60, bounds, bounds.get_center())
-                self.geometry_test.append(
-                    Geometry(-1, geometry_name, geometry))
+
+                self.geometry_infos.push_back(geometry_info)
                 self.update_geometry_treeview(1)
-                print(self.geometry_test)
+                self._print_message("[Info] Successfully read " + path)
+                
             except Exception as e:
                 print(e)
+                self._print_message("[ERROR] Failure to read " + path)
 
-    def load_other_format_pc(self, path):
-        self.display_panel.scene.clear_geometry()
-        suffix = path.split(".")[1]
-        self.geometry = None
-        try:
-            if suffix == "txt" or suffix == "pwn":
-                self.geometry = o3d.io.read_point_cloud(path, format='xyz')
-            else:
-                self.geometry = o3d.io.read_point_cloud(path)
-        except Exception:
-            pass
-        if self.geometry is not None:
-            self._print_message("[Info] Successfully read " + path)
-            print("[Info] Successfully read", path)
-            try:
-                self.display_panel.scene.add_geometry(
-                    "__cloud__", self.geometry, self.settings.material)
-                bounds = self.geometry.get_axis_aligned_bounding_box()
-                self.display_panel.setup_camera(
-                    60, bounds, bounds.get_center())
-            except Exception as e:
-                print(e)
-        else:
-            self._print_message("[WARNING] Failed to read points " + path)
-            print("[WARNING] Failed to read points", path)
-
-    def write(self, path):
-        suffix = path.split(".")[1]
-        point_cloud_file_extension_name = [
-            "xyz", "xyzn", "xyzrgb", "ply", "pcd", "pts"]
-        mesh_file_extension_name = [
-            "ply", "stl", "fbx", "obj", "off", "gltf", "glb"]
-        if self.geometry is None:
-            self._print_message("[WARNING] There is no Mesh.")
-        else:
-            vertices, faces = from_o3d_to_numpy(self.geometry)
-            if faces is None:
-                if suffix in point_cloud_file_extension_name:
-                    try:
-                        o3d.io.write_point_cloud(
-                            path, self.geometry, write_ascii=True)
-                    except Exception as e:
-                        print(e)
-                else:
-                    faces = np.array([]).reshape(-1, 3)
-                    try:
-                        o3d.io.write_triangle_mesh(
-                            path, from_numpy_to_o3d(vertices, faces), write_ascii=True)
-                    except Exception as e:
-                        print(e)
-            else:
-                if suffix in mesh_file_extension_name:
-                    try:
-                        o3d.io.write_triangle_mesh(
-                            path, self.geometry, write_ascii=True)
-                    except Exception as e:
-                        print(e)
-                else:
-                    try:
-                        o3d.io.write_point_cloud(
-                            path, from_numpy_to_o3d(vertices, None), write_ascii=True)
-                    except Exception as e:
-                        print(e)
-            self._print_message("[Info] file is saved at: " + path)
+    def write(self, path: str):
+        if len(self.geometry_infos) != 0:
+            ID = self.geometry_treeview.selected_item
+            for g in self.geometry_infos.getAll():
+                if g.id == ID:
+                    result = g.write(path)
+                    if result:
+                        self._print_message("[INFO] Successfully write "+path)
+                    else:
+                        self._print_message("[ERROR] Failure to write "+path)
+                    break
 
     def train_model(self):
         point_cloud = np.loadtxt(
@@ -774,10 +690,10 @@ class MainWindow:
                                   " [INFO] already stop the training")
 
                 # 画布替换
-                self.geometry = from_numpy_to_o3d(
-                    new_vertices.numpy(), remeshed_faces)
-                gui.Application.instance.post_to_main_thread(
-                    self.window, self._change_scene_on_child_thread)
+                # self.geometry = from_numpy_to_o3d(
+                #     new_vertices.numpy(), remeshed_faces)
+                # gui.Application.instance.post_to_main_thread(
+                #     self.window, self._change_scene_on_child_thread)
 
                 # 暂停训练
                 while not self.train_status:
@@ -881,17 +797,24 @@ class MainWindow:
 
     def _remesh(self):
         self._dialog_cancel()
-        if self.geometry is None or self.geometry.get_geometry_type() == o3d.geometry.Geometry.PointCloud:
+        ID = self.geometry_treeview.selected_item
+        geometry_info = self.geometry_infos.get(ID)
+        if geometry_info.geometry is None or geometry_info.geometry.get_geometry_type() == o3d.geometry.Geometry.PointCloud:
             self._print_message(
                 "[WARNING] There is no mesh or the geometry have no face.")
         else:
-            vertices, faces = from_o3d_to_numpy(self.geometry)
+            vertices, faces = geometry_info.to_numpy()
             new_vertices, new_faces = remesh(
                 vertices, faces, self._remesh_face_num.int_value)
-            self.geometry = from_numpy_to_o3d(new_vertices, new_faces)
-            self._change_scene_on_child_thread()
-            self._print_message("[INFO] already remesh, vertices: " +
-                                str(new_vertices.shape[0]) + ", faces: " + str(new_faces.shape[0]))
+
+            g = GeometryInfo.from_numpy(new_vertices, new_faces)
+            temp = GeometryInfo(None)
+            temp.init(geometry.name+"_manifold_simplied", g, True)
+            self.geometry_infos.push_back(temp)
+
+            self.display_panel.scene.add_geometry(
+                temp.name, temp.geometry, self.settings.material)
+            self._print_message("[INFO] already remesh.")
 
 
 def main():
