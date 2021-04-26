@@ -102,8 +102,8 @@ class Options():
         if self.subdivision_multiplier <= 1:
             warnings.append(
                 "the multiple of face number of two adjacent epoch must > 1.0.")
-        if self.initial_num_faces <= 1000:
-            warnings.append("suggest The initial face number > 1000.")
+        if self.initial_num_faces < 1000:
+            warnings.append("suggest The initial face number >= 1000.")
         if self.max_num_faces <= self.initial_num_faces:
             warnings.append(
                 "The maximum face number must > the initial face number.")

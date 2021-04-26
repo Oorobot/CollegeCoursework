@@ -1,5 +1,6 @@
 import os
 import time
+from typing import Tuple
 
 import numpy as np
 import open3d as o3d
@@ -270,7 +271,7 @@ class MainWindow:
         self.geometry_treeview = gui.TreeView()
         self.geometry_treeview.can_select_items_with_children = False
         self.geometry_panel.add_child(gui.Label("Geometries:"))
-        self.geometry_treeview.set_on_selection_changed(self._on_tree)
+        # self.geometry_treeview.set_on_selection_changed(self._on_tree)
 
         self.geometry_panel.add_child(self.geometry_treeview)
 
@@ -325,8 +326,8 @@ class MainWindow:
             r.width, self.info_panel.calc_preferred_size(theme).height
         )
 
-    def _on_tree(self, id):
-        pass
+    # def _on_tree(self, id):
+    #     pass
 
     def add_geometry_widget(self):
         ID = self.geometry_treeview.add_item(
@@ -340,10 +341,13 @@ class MainWindow:
     def remove_geometry_widget(self):
         ID = self.geometry_treeview.selected_item
         self.geometry_treeview.selected_item = 0
+        # 移除geometry部件
         self.geometry_treeview.remove_item(ID)
         g = self.geometry_infos.get(ID)
+        # 从画布和geometry_infos中移除
         self.display_panel.scene.remove_geometry(g.name)
         self.geometry_infos.remove(ID)
+        # 设置geometry_panel中选中的项目
         if len(self.geometry_infos.geometry_infos) > 0:
             self.geometry_treeview.selected_item = self.geometry_infos.geometry_infos[0].id
         else:
@@ -370,14 +374,14 @@ class MainWindow:
         button_2 = gui.Button("hide/show")
         button_2.horizontal_padding_em = 1
         button_2.vertical_padding_em = 0
-        button_2.set_on_clicked(self._on_geometry_show_hide)
+        button_2.set_on_clicked(self._on_show_hide)
         horiz_2.add_stretch()
         horiz_2.add_child(button_2)
         widget.add_child(horiz_2)
 
         return widget
 
-    def _on_geometry_show_hide(self):
+    def _on_show_hide(self):
         ID = self.geometry_treeview.selected_item
         g_info = self.geometry_infos.get(ID)
         self.display_panel.scene.show_geometry(g_info.name, not g_info.visible)
@@ -574,6 +578,7 @@ class MainWindow:
             self.train_status = True
             self.stop_button.visible = True
             self.Train_button.enabled = False
+            self.display_panel.scene.clear_geometry()
             threading.Thread(target=self.train_model).start()
         else:
             self.show_message_box("WARNING", warnings)
@@ -597,7 +602,7 @@ class MainWindow:
         g_info = GeometryInfo(path)
         if g_info.geometry is not None:
             if pc:
-                self.cloud, _ = g_info.to_numpy()
+                self.cloud, _ = GeometryInfo.o3d_to_numpy(g_info.geometry)
                 self.cloud = self.cloud.tolist()
 
             self.display_panel.scene.add_geometry(
@@ -628,9 +633,15 @@ class MainWindow:
         point_cloud = self.cloud
         point_cloud_tf = tf.convert_to_tensor(point_cloud, dtype=tf.float32)
 
-        def save_mesh(filename, vertices, faces):
-            Obj.save(os.path.join(
-                self.options.save_location, filename), vertices, faces)
+        def load(path) -> Tuple[np.ndarray, np.ndarray]:
+            g_info = GeometryInfo.read(path)
+            vertices, faces = GeometryInfo.o3d_to_numpy(g_info.geometry)
+            return np.float32(vertices), faces
+        
+        def save(path,vertices,faces):
+            geometry = GeometryInfo.numpy_to_o3d(vertices, faces)
+            GeometryInfo.write(geometry, path)
+        
 
         def print_message(message: str):
             self.message = message
@@ -640,14 +651,19 @@ class MainWindow:
 
         # 初始网格
         if self.options.initial_mesh:
-            remeshed_vertices, remeshed_faces = Obj.load(
-                self.options.initial_mesh)
+            remeshed_vertices, remeshed_faces = load(self.options.initial_mesh)
         else:
             convex_hull = trimesh.convex.convex_hull(point_cloud)
             remeshed_vertices, remeshed_faces = remesh(
                 convex_hull.vertices, convex_hull.faces, self.options.initial_num_faces
             )
-        save_mesh("tmp_initial_mesh.obj", remeshed_vertices, remeshed_faces)
+        save("tmp_initial_mesh.obj", remeshed_vertices, remeshed_faces)
+
+        # 画布显示初始网格模型
+        self.mesh_in_train = GeometryInfo.numpy_to_o3d(
+            remeshed_vertices, remeshed_faces)
+        gui.Application.instance.post_to_main_thread(
+            self.window, self._change_scene_on_child_thread)
 
         # 模型
         chamfer_loss = ChamferLossLayer()
@@ -714,7 +730,7 @@ class MainWindow:
                 # 保存模型
                 save_obj = self.options.obj_save_modulo
                 if iteration % save_obj == 0 or converged or iteration == num_iterations - 1:
-                    save_mesh(
+                    save(
                         f"tmp_{str(subdivision_level).zfill(2)}_{str(iteration).zfill(3)}.obj",
                         new_vertices.numpy(),
                         remeshed_faces,
@@ -732,10 +748,10 @@ class MainWindow:
                                   " [Info] already stop the training")
 
                 # 画布替换
-                # self.geometry = from_numpy_to_o3d(
-                #     new_vertices.numpy(), remeshed_faces)
-                # gui.Application.instance.post_to_main_thread(
-                #     self.window, self._change_scene_on_child_thread)
+                self.mesh_in_train = GeometryInfo.numpy_to_o3d(
+                    new_vertices.numpy(), remeshed_faces)
+                gui.Application.instance.post_to_main_thread(
+                    self.window, self._change_scene_on_child_thread)
 
                 # 暂停训练
                 while not self.train_status:
@@ -747,14 +763,30 @@ class MainWindow:
                     break
 
         print_message("Done")
-        self.train_status = False
-        self.Train_button.enabled = True
-        self.stop_button.visible = False
+        gui.Application.instance.post_to_main_thread(
+                    self.window, self._reset_after_train)
 
     def _change_scene_on_child_thread(self):
         self.display_panel.scene.clear_geometry()
         self.display_panel.scene.add_geometry(
-            "__model__", self.geometry, self.settings.material)
+            "__result__", self.mesh_in_train, self.settings.material)
+    
+    def _reset_after_train(self):
+        self.train_status = False
+        self.Train_button.enabled = True
+        self.stop_button.visible = False
+        self.display_panel.scene.clear_geometry()
+        for g_info in self.geometry_infos.geometry_infos:
+            g_info.visible = False
+            self.display_panel.scene.add_geometry(
+                g_info.name, g_info.geometry, self.settings.material)
+            self.display_panel.scene.show_geometry(g_info.name, False)
+        temp = GeometryInfo(None)
+        temp.init("__result__", self.mesh_in_train)
+        self.geometry_infos.push_back(temp)
+        self.add_geometry_widget()
+        self.display_panel.scene.add_geometry(
+            temp.name, temp.geometry, self.settings.material)
 
     # 消息面板
     def _print_message_on_child_thread(self):
@@ -814,11 +846,11 @@ class MainWindow:
             self._print_message(
                 "[WARNING] There is no mesh or the geometry have no face.")
         else:
-            vertices, faces = geometry_info.to_numpy()
+            vertices, faces = GeometryInfo.o3d_to_numpy(geometry_info.geometry)
             new_vertices, new_faces = remesh(
                 vertices, faces, self._remesh_face_num.int_value)
 
-            g = GeometryInfo.from_numpy(new_vertices, new_faces)
+            g = GeometryInfo.numpy_to_o3d(new_vertices, new_faces)
             temp = GeometryInfo(None)
             temp.init(geometry_info.name+"_manifold_simplied", g, True)
             self.geometry_infos.push_back(temp)
@@ -826,7 +858,7 @@ class MainWindow:
 
             self.display_panel.scene.add_geometry(
                 temp.name, temp.geometry, self.settings.material)
-            self._print_message("[Info] already remesh.")
+            self._print_message("[Info] Successfully remesh.")
 
 
 def main():

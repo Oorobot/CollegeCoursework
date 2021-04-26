@@ -16,9 +16,7 @@ class GeometryInfo():
     num_faces: int
 
     def __init__(self, path: str) -> None:
-        '''
-            path: 文件路径, path = None ,则需在使用init()函数
-        '''
+        """ path: 文件路径或None。 path = None ,则需再使用init()函数 """
         self.id = -1
         self.visible = True
         self.file = ""
@@ -31,24 +29,24 @@ class GeometryInfo():
     
     def bulid(self):
         if self.geometry:
-            self.num_vertices = 0
-            self.num_faces = 0
-        else:
             if self.geometry.get_geometry_type() == o3d.geometry.Geometry.PointCloud:
                 self.num_vertices = len(self.geometry.points)
                 self.num_faces = 0
             else: # o3d.geometry.Geometry.TriangleMesh
                 self.num_vertices = len(self.geometry.vertices)
                 self.num_faces = len(self.geometry.triangles)
+        else:
+            self.num_vertices = 0
+            self.num_faces = 0
 
     def init(self, name: str, geometry, visible=True) -> bool:
         if geometry:
-            print("[ERROR] geometry is None.")
-        else:
             self.name = name
             self.visible = visible
             self.geometry = geometry
             self.bulid()
+        else:
+            print("[ERROR] geometry is None.")
 
     def set_id(self, id: int):
         self.id = id
@@ -82,6 +80,7 @@ class GeometryInfo():
                 # 添加点的颜色属性
                 if len(mesh.vertex_colors) == 0:
                     mesh.paint_uniform_color([1, 1, 1])
+                geometry = mesh
             print("[Info] Successfully read", path)
         else:
             print("[Info]", path, "try to read as a point cloud")
@@ -250,6 +249,7 @@ class GeometryInfos():
             # 修改名字
             geometry_info.name = name
             # 添加 info
+            self.geometry_names.append(geometry_info.name)
             self.geometry_infos.append(geometry_info)
 
     def remove(self, id: int):
@@ -258,4 +258,4 @@ class GeometryInfos():
                 self.geometry_infos.remove(g_info)
                 self.geometry_names.remove(g_info.name)
                 break
-            
+
