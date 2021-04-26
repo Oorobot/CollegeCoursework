@@ -1,5 +1,6 @@
 import os
-from typing import List, Optional
+from sys import path, set_asyncgen_hooks
+from typing import List, Optional, Tuple
 
 import numpy as np
 import open3d as o3d
@@ -14,7 +15,7 @@ class GeometryInfo():
     num_vertices: int
     num_faces: int
 
-    def __init__(self, path:str) -> None:
+    def __init__(self, path: str) -> None:
         '''
             path: 文件路径, path = None ,则需在使用init()函数
         '''
@@ -22,64 +23,68 @@ class GeometryInfo():
         self.visible = True
         self.file = ""
         self.name = ""
-        self.path = ""
-        self.geometry = None
         if path is not None:
-            self.read(path)
-
-    def __str__(self) -> str:
-        return f"[{self.__class__.__name__}: id={self.id}, name={self.name}, geometry={self.geometry}, visible={self.visible}]"
+            self.file = os.path.basename(path)
+            self.name = self.file.split(".")[0]
+            self.geometry = GeometryInfo.read(path)
+            self.bulid()
     
-    def init(self, name: str, geometry, visible: bool) -> bool:
-        if geometry is None:
+    def bulid(self):
+        if self.geometry:
+            self.num_vertices = 0
+            self.num_faces = 0
+        else:
+            if self.geometry.get_geometry_type() == o3d.geometry.Geometry.PointCloud:
+                self.num_vertices = len(self.geometry.points)
+                self.num_faces = 0
+            else: # o3d.geometry.Geometry.TriangleMesh
+                self.num_vertices = len(self.geometry.vertices)
+                self.num_faces = len(self.geometry.triangles)
+
+    def init(self, name: str, geometry, visible=True) -> bool:
+        if geometry:
             print("[ERROR] geometry is None.")
-            return False
         else:
             self.name = name
-            self.geometry = geometry
             self.visible = visible
-            type = self.geometry.get_geometry_type()
-            if type == o3d.geometry.Geometry.PointCloud:
-                self.num_vertices = len(geometry.points)
-                self.num_faces = 0
-            if type == o3d.geometry.Geometry.TriangleMesh:
-                self.num_vertices = len(geometry.vertices)
-                self.num_faces = len(geometry.triangles)
-            return True
+            self.geometry = geometry
+            self.bulid()
 
     def set_id(self, id: int):
         self.id = id
+    
+    def save(self, path):
+        GeometryInfo.write(self.geometry, path)
 
-    def read(self, path: str) -> bool:
-
-        self.path = path
-        self.file = os.path.basename(path)
-        self.name = self.file.split(".")[0]
-
+    @staticmethod
+    def read(path: str):
         geometry = None
-        geometry_type = o3d.io.read_file_geometry_type(path)
         mesh = None
-        if geometry_type & o3d.io.CONTAINS_TRIANGLES:
+        # 尝试作为 triangle mesh 读取
+        try:
             mesh = o3d.io.read_triangle_mesh(path)
-        if mesh is not None:
+        except Exception as e:
+            pass
+        if len(mesh.vertices) != 0:
             if len(mesh.triangles) == 0:
-                print("[WARNING] Contains 0 triangles, will read as point cloud")
-                mesh = None
+                print("[Info] Contains 0 triangles, will convert to point cloud")
+                # 将 triangle mesh 转换为 point cloud
+                vertices = np.asarray(mesh.vertices)
+                cloud = o3d.geometry.PointCloud()
+                cloud.points = o3d.utility.Vector3dVector(vertices)
+                # 计算法向量
+                cloud.estimate_normals()
+                cloud.normalize_normals()
+                geometry = cloud
             else:
-                print("[INFO] Successfully read", path)
-                self.num_vertices = len(mesh.vertices)
-                self.num_faces = len(mesh.triangles)
-
+                # 计算点的法向量
                 mesh.compute_vertex_normals()
+                # 添加点的颜色属性
                 if len(mesh.vertex_colors) == 0:
                     mesh.paint_uniform_color([1, 1, 1])
-                geometry = mesh
-
-                if not mesh.has_triangle_uvs():
-                    uv = np.array([[0.0, 0.0]] * (3 * len(mesh.triangles)))
-                    mesh.triangle_uvs = o3d.utility.Vector2dVector(uv)
+            print("[Info] Successfully read", path)
         else:
-            print("[INFO]", path, "appears to be a point cloud")
+            print("[Info]", path, "try to read as a point cloud")
         if geometry is None:
             cloud = None
             suffix = path.split(".")[1]
@@ -90,82 +95,89 @@ class GeometryInfo():
                     cloud = o3d.io.read_point_cloud(path)
             except Exception:
                 pass
-            if cloud is not None:
-                print("[INFO] Successfully read", path)
-                self.num_vertices = len(cloud.points)
-                self.num_faces = 0
-
+            if len(cloud.points) != 0:
+                # 计算法向量
                 if not cloud.has_normals():
                     cloud.estimate_normals()
                 cloud.normalize_normals()
                 geometry = cloud
+                print("[Info] Successfully read", path)
             else:
                 print("[WARNING] Failed to read points", path)
-        if geometry is not None:
-            self.geometry = geometry
-            return True
-        return False
+        return geometry        
 
-    def write(self, path: str) -> bool:
+    @staticmethod
+    def write(geometry, path: str) -> bool:
+        """save o3d.geometry.Geometry.PointCloud or TriangleMesh as a file"""
+
+        # geometry 不能为空且必须为open3d的指定类型
+        assert geometry is not None
+        type = geometry.get_geometry_type()
+        assert type == o3d.geometry.Geometry.PointCloud or type == o3d.geometry.Geometry.TriangleMesh
+
+        # 获取文件扩展名
         suffix = path.split(".")[1]
         point_cloud_file = ["xyz", "xyzn", "xyzrgb", "ply", "pcd", "pts"]
         mesh_file = ["ply", "stl", "fbx", "obj", "off", "gltf", "glb"]
-        if self.geometry is None:
-            return False
-        else:
-            vertices, faces = self.to_numpy()
 
-            def point_cloud(path, geometry) -> bool:
-                try:
-                    o3d.io.write_point_cloud(path, geometry, write_ascii=True)
-                    return True
-                except Exception as e:
-                    print(e)
-                    return False
+        vertices, faces = GeometryInfo.o3d_to_numpy(geometry)
 
-            def mesh(path, geometry) -> bool:
-                try:
-                    o3d.io.write_triangle_mesh(
-                        path, geometry, write_ascii=True)
-                    return True
-                except Exception as e:
-                    print(e)
-                    return False
+        def point_cloud(path, geometry) -> bool:
+            try:
+                o3d.io.write_point_cloud(path, geometry, write_ascii=True)
+                return True
+            except Exception as e:
+                print(e)
+                return False
 
-            if faces is None:
-                if suffix in point_cloud_file:
-                    return point_cloud(path, self.geometry)
-                else:
-                    faces = np.array([]).reshape(-1, 3)
-                    return mesh(path, GeometryInfo.from_numpy(vertices, faces))
+        def mesh(path, geometry) -> bool:
+            try:
+                o3d.io.write_triangle_mesh(
+                    path, geometry, write_ascii=True)
+                return True
+            except Exception as e:
+                print(e)
+                return False
+        # 没有面的数据时
+        if faces is None:
+            if suffix in point_cloud_file:
+                return point_cloud(path, geometry)
             else:
-                if suffix in mesh_file:
-                    return mesh(path, self.geometry)
-                else:
-                    return point_cloud(path, GeometryInfo.from_numpy(vertices, None))
+                faces = np.array([]).reshape(-1, 3)
+                print("[WARNING] point cloud should not save as a mesh file.")
+                return mesh(path, GeometryInfo.numpy_to_o3d(vertices, faces))
+        # 有面的数据时
+        else:
+            if suffix in mesh_file:
+                return mesh(path, geometry)
+            else:
+                print("[Info] only save the vertices of the mesh.")
+                return point_cloud(path, GeometryInfo.numpy_to_o3d(vertices, None))
 
-    def to_numpy(self):
-        """convert self.geometry(o3d.geometry.Geometry.PointCloud or TriangleMesh) to numpy"""
+    @staticmethod
+    def o3d_to_numpy(geometry) -> Tuple[np.ndarray, np.ndarray]:
+        """convert geometry(o3d.geometry.Geometry.PointCloud or TriangleMesh) to numpy"""
 
-        assert self.geometry is not None
-        type = self.geometry.get_geometry_type()
+        # geometry 不能为空且必须为open3d的指定类型
+        assert geometry is not None
+        type = geometry.get_geometry_type()
         assert type == o3d.geometry.Geometry.PointCloud or type == o3d.geometry.Geometry.TriangleMesh
 
         vertices = None
         faces = None
         if type == o3d.geometry.Geometry.PointCloud:
-            vertices = np.asarray(self.geometry.points)
+            vertices = np.asarray(geometry.points)
         if type == o3d.geometry.Geometry.TriangleMesh:
-            vertices = np.asarray(self.geometry.vertices)
-            faces = np.asarray(self.geometry.triangles)
+            vertices = np.asarray(geometry.vertices)
+            faces = np.asarray(geometry.triangles)
         return vertices, faces
 
     @staticmethod
-    def from_numpy(vertices: np.ndarray, faces: Optional[np.ndarray]):
-        """
+    def numpy_to_o3d(vertices: np.ndarray, faces: Optional[np.ndarray]):
+        """convert numpy to open3d.geometry.Geometry.PointCloud or TriangleMesh
+
             vertices: shape(num, 3)
             faces: shape(num, 3) or None
-            return: open3d.geometry.Geometry.PointCloud or TriangleMesh
         """
         geometry = None
         if faces is None:
@@ -178,62 +190,72 @@ class GeometryInfo():
         return geometry
 
 
+
 class GeometryInfos():
-    geometrt_infos: List[GeometryInfo]
-    geometry_names = List[str]
+    geometry_infos: List[GeometryInfo]
+    geometry_names: List[str]
 
     def __init__(self) -> None:
-        self.geometrt_infos = []
+        self.geometry_infos = []
         self.geometry_names = []
+
+    def get(self, id=-1, name=None) -> GeometryInfo:
+        """ 根据 id 或 name 找到 GeometryInfo """
+        geometry_info = None
+        if name == None:
+            for g_info in self.geometry_infos:
+                if g_info.id == id:
+                    geometry_info = g_info
+                    break
+        if id == -1:
+            for g_info in self.geometry_infos:
+                if g_info.name == name:
+                    geometry_info = g_info
+                    break
+        return geometry_info
+
+    def pop(self):
+        if len(self.geometry_infos) > 0:
+            self.geometry_infos.pop()
+            self.geometry_names.pop()
+        else:
+            print("[WARNING] no item to pop")
 
     def push_back(self, geometry_info: GeometryInfo):
         if not isinstance(geometry_info, GeometryInfo):
             print("[WARNING] 添加元素类型错误")
         else:
-            self.check_name(geometry_info)
-            self.geometrt_infos.append(geometry_info)
-
-    # 检测是否重名，若重名则修改
-    def check_name(self, geometry_info: GeometryInfo):
-        name = geometry_info.name
-        while name in self.geometry_names:
-            if not name.endswith(")"):
-                name = name + "(1)"
-            else:
-                try:
-                    left = name.rindex("(")
-                    number = name[left+1:len(name)-1]
-                    if number.isdigit():
-                        name = name[:left]
-                        number = str(int(number)+1)
-                        name = name + "(" + number + ")"
-                    else:
-                        name = name + "(1)"
-                except Exception as e:
+            # 检查是否重名，若重名则修改名字
+            name = geometry_info.name
+            while name in self.geometry_names:
+                # 名字后缀无编号，直接添加编号
+                if not name.endswith(")"):
                     name = name + "(1)"
-                    pass
-        self.geometry_names.append(name)
-        geometry_info.name = name
+                else:
+                    try:
+                        # 找名字中最后的“(”的位置
+                        right = name.rindex("(")
+                        # 截取括号间的字符串
+                        number = name[right + 1: len(name) - 1]
+                        # 编号加1
+                        if number.isdigit():
+                            name = name[:right]
+                            name = name + "(" + str(int(number)+1) + ")"
+                        # 直接添加编号
+                        else:
+                            name = name + "(1)"
+                    # 名字中无“(”时，直接添加编号
+                    except Exception as e:
+                        name = name + "(1)"
+            # 修改名字
+            geometry_info.name = name
+            # 添加 info
+            self.geometry_infos.append(geometry_info)
 
     def remove(self, id: int):
-        geometry_info = None
-        for g_info in self.geometrt_infos:
+        for g_info in self.geometry_infos:
             if g_info.id == id:
-                geometry_info = g_info
+                self.geometry_infos.remove(g_info)
+                self.geometry_names.remove(g_info.name)
                 break
-        if geometry_info is not None:
-            self.geometrt_infos.remove(geometry_info)
-            self.geometry_names.remove(geometry_info.name)
-        else:
-            print("[WARNING] no such geometry")
-
-    def get(self, id: int) -> GeometryInfo:
-        geometry_info = None
-        for g_info in self.geometrt_infos:
-            if g_info.id == id:
-                geometry_info = g_info
-                break
-        return geometry_info
-    
-    def getAll(self) -> List[GeometryInfo]:
-        return self.geometrt_infos
+            

@@ -33,15 +33,20 @@ class MainWindow:
     MENU_SHOW_GEOMETRY = 28
 
     def __init__(self):
+
         # 渲染
         self.settings = Settings()
-        # 参数
+
+        # 训练参数
         self.options = Options()
+
         # 三维模型
-        self.geometry = None
+        self.cloud = None # 训练的点云
         self.geometry_infos = GeometryInfos()
+
         # 消息面板-显示消息
         self.message = None
+
         # 训练状态：True-训练中，False-未训练或训练暂停
         self.train_status = False
 
@@ -325,8 +330,8 @@ class MainWindow:
 
     def add_geometry_widget(self):
         ID = self.geometry_treeview.add_item(
-            self.geometry_treeview.get_root_item(), self.geometry_widget(self.geometry_infos.getAll()[-1]))
-        self.geometry_infos.getAll()[-1].set_id(ID)
+            self.geometry_treeview.get_root_item(), self.geometry_widget(self.geometry_infos.geometry_infos[-1]))
+        self.geometry_infos.geometry_infos[-1].set_id(ID)
         self.geometry_treeview.selected_item = ID
 
     def remove_on_child_thread(self):
@@ -339,8 +344,8 @@ class MainWindow:
         g = self.geometry_infos.get(ID)
         self.display_panel.scene.remove_geometry(g.name)
         self.geometry_infos.remove(ID)
-        if len(self.geometry_infos.geometrt_infos) > 0:
-            self.geometry_treeview.selected_item = self.geometry_infos.geometrt_infos[0].id
+        if len(self.geometry_infos.geometry_infos) > 0:
+            self.geometry_treeview.selected_item = self.geometry_infos.geometry_infos[0].id
         else:
             self.geometry_treeview.selected_item = 0
 
@@ -417,7 +422,6 @@ class MainWindow:
     def _file_dialog_done(self, path):
         self.window.close_dialog()
         self.load(path)
-        self._print_message("[info] file: " + path)
 
     # 菜单栏 --> 关于
     def _on_menu_about(self):
@@ -466,7 +470,7 @@ class MainWindow:
             self.display_panel.scene.add_geometry(
                 temp.name, temp.geometry, self.settings.material)
 
-            self._print_message("[INFO] already create convex_hull")
+            self._print_message("[Info] already create convex_hull")
         else:
             self._print_message("[WARNING] There is no Mesh.")
 
@@ -515,12 +519,11 @@ class MainWindow:
     def _on_p_c_d_done(self, path):
         self._point_cloud.text_value = path
         path_list = path.split("/")
-        path_list.pop()
-        path_list.append("results")
-        result_path = "/".join(path_list)
-        self._result_folder.text_value = result_path
+        path_list[-1] = "results"
+        self._result_folder.text_value = "/".join(path_list)
 
         self.window.close_dialog()
+        path = path + "__train__"
         self.load(path)
 
     # 训练面板 --> 有无初始网格
@@ -585,39 +588,44 @@ class MainWindow:
             self.train_status = True
             self._print_message("recovery the training.")
 
-    def load(self, path):
-        geometry_info = GeometryInfo(path)
-        if geometry_info.geometry is not None:
-            try:
-                self.display_panel.scene.add_geometry(
-                    geometry_info.name, geometry_info.geometry, self.settings.material)
-                bounds = geometry_info.geometry.get_axis_aligned_bounding_box()
-                self.display_panel.setup_camera(
-                    60, bounds, bounds.get_center())
+    def load(self, path: str):
+        pc = False
+        if path.endswith("__train__"):
+            path = path[:-9]
+            pc = True
 
-                self.geometry_infos.push_back(geometry_info)
-                self.add_geometry_widget()
-                self._print_message("[Info] Successfully read " + path)
+        g_info = GeometryInfo(path)
+        if g_info.geometry is not None:
+            if pc:
+                self.cloud, _ = g_info.to_numpy()
+                self.cloud = self.cloud.tolist()
 
-            except Exception as e:
-                print(e)
-                self._print_message("[ERROR] Failure to read " + path)
+            self.display_panel.scene.add_geometry(
+                g_info.name, g_info.geometry, self.settings.material)
+            bounds = g_info.geometry.get_axis_aligned_bounding_box()
+            self.display_panel.setup_camera(
+                60, bounds, bounds.get_center())
+
+            self.geometry_infos.push_back(g_info)
+            self.add_geometry_widget()
+            self._print_message("[Info] Successfully read " + path)
+        else:
+            self._print_message("[ERROR] Failure to read " + path)
 
     def write(self, path: str):
-        if len(self.geometry_infos.geometrt_infos) != 0:
+        if len(self.geometry_infos.geometry_infos) != 0:
             ID = self.geometry_treeview.selected_item
             g_info = self.geometry_infos.get(ID)
-            if g_info.write(path):
-                self._print_message("[INFO] Successfully write "+path)
+            if g_info.save(path):
+                self._print_message("[Info] Successfully save "+path)
             else:
-                self._print_message("[ERROR] Failure to write "+path)
+                self._print_message("[ERROR] Failure to save "+path)
         else:
             self._print_message("[WARNING] please choose a geometry.")
 
     def train_model(self):
 
-        point_cloud = np.loadtxt(
-            fname=self.options.point_cloud, usecols=(0, 1, 2))
+        point_cloud = self.cloud
         point_cloud_tf = tf.convert_to_tensor(point_cloud, dtype=tf.float32)
 
         def save_mesh(filename, vertices, faces):
@@ -721,7 +729,7 @@ class MainWindow:
                     print_message(" ".join(message))
                 else:
                     print_message(" ".join(message) +
-                                  " [INFO] already stop the training")
+                                  " [Info] already stop the training")
 
                 # 画布替换
                 # self.geometry = from_numpy_to_o3d(
@@ -818,7 +826,7 @@ class MainWindow:
 
             self.display_panel.scene.add_geometry(
                 temp.name, temp.geometry, self.settings.material)
-            self._print_message("[INFO] already remesh.")
+            self._print_message("[Info] already remesh.")
 
 
 def main():
