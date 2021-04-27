@@ -1,4 +1,3 @@
-import os
 import time
 from typing import Tuple
 
@@ -14,24 +13,27 @@ from .options import Options
 from .settings import Settings
 from .geometry import GeometryInfo, GeometryInfos
 from ..model.Mesh import Mesh
-from ..script.tools import Obj, remesh
+from ..script.tools import remesh
 from ..model.Loss import ChamferLossLayer, ConvergenceDetector
 from ..model.PointToMeshModel import PointToMeshModel, get_vertex_features
 
 
 class MainWindow:
 
-    WINDOW_TRAIN = 1
-    WINDOW_GEOMETRY = 2
+    MENU_FILE = 1
+    MENU_EXPORTFILE = 2
+    MENU_ABOUT = 3
 
-    MENU_FILE = 21
-    MENU_EXPORTFILE = 22
-    MENU_ABOUT = 23
-    MENU_CONVEX_HULL = 24
-    MENU_REMESH = 25
-    MENU_CLOSE_ALL = 26
-    MENU_SHOW_TRAIN = 27
-    MENU_SHOW_GEOMETRY = 28
+    MENU_CONVEX_HULL = 4
+    MENU_REMESH = 5
+
+    MENU_CLOSE_ALL = 6
+    MENU_SHOW_TRAIN = 7
+    MENU_SHOW_GEOMETRY = 8
+
+    MENU_SMOOTH_AVERAGE = 10
+    MENU_SMOOTH_LAPLACIAN = 11
+    MENU_SMOOTH_TAUBIN = 12
 
     def __init__(self):
 
@@ -42,7 +44,7 @@ class MainWindow:
         self.options = Options()
 
         # 三维模型
-        self.cloud = None # 训练的点云
+        self.cloud = None  # 训练的点云
         self.geometry_infos = GeometryInfos()
 
         # 消息面板-显示消息
@@ -68,8 +70,18 @@ class MainWindow:
             operation_menu = gui.Menu()
             operation_menu.add_item(
                 "Create convex hull", MainWindow.MENU_CONVEX_HULL)
-            operation_menu.add_item(
+            mesh_menu = gui.Menu()
+            mesh_menu.add_item(
+                "average smooth", MainWindow.MENU_SMOOTH_AVERAGE)
+            mesh_menu.add_item(
+                "laplacian smooth", MainWindow.MENU_SMOOTH_LAPLACIAN)
+            mesh_menu.add_item(
+                "taubin smooth", MainWindow.MENU_SMOOTH_TAUBIN)
+            mesh_menu.add_separator()
+            mesh_menu.add_item(
                 "Remesh:Manifold and Simplify", MainWindow.MENU_REMESH)
+
+            operation_menu.add_menu("mesh layer", mesh_menu)          
             menubar.add_menu("Operations", operation_menu)
 
             view_menu = gui.Menu()
@@ -77,6 +89,7 @@ class MainWindow:
             view_menu.add_separator()
             view_menu.add_item("Show train panel", MainWindow.MENU_SHOW_TRAIN)
             view_menu.set_checked(MainWindow.MENU_SHOW_TRAIN, True)
+            view_menu.set_checked(MainWindow.MENU_SHOW_GEOMETRY, True)
             view_menu.add_item("Show Geometry panel",
                                MainWindow.MENU_SHOW_GEOMETRY)
             menubar.add_menu("View", view_menu)
@@ -102,6 +115,12 @@ class MainWindow:
             MainWindow.MENU_SHOW_TRAIN, self._on_menu_show_train)
         self.window.set_on_menu_item_activated(
             MainWindow.MENU_SHOW_GEOMETRY, self._on_menu_show_geometry)
+        self.window.set_on_menu_item_activated(
+            MainWindow.MENU_SMOOTH_AVERAGE, self._on_menu_smooth_average)
+        self.window.set_on_menu_item_activated(
+            MainWindow.MENU_SMOOTH_LAPLACIAN, self._on_menu_smooth_laplacian)
+        self.window.set_on_menu_item_activated(
+            MainWindow.MENU_SMOOTH_TAUBIN, self._on_menu_smooth_taubin)
 
         # 显示“三维模型”部分
         self.display_panel = gui.SceneWidget()
@@ -330,6 +349,7 @@ class MainWindow:
     #     pass
 
     def add_geometry_widget(self):
+        # 添加geometry部件
         ID = self.geometry_treeview.add_item(
             self.geometry_treeview.get_root_item(), self.geometry_widget(self.geometry_infos.geometry_infos[-1]))
         self.geometry_infos.geometry_infos[-1].set_id(ID)
@@ -384,8 +404,8 @@ class MainWindow:
     def _on_show_hide(self):
         ID = self.geometry_treeview.selected_item
         g_info = self.geometry_infos.get(ID)
-        self.display_panel.scene.show_geometry(g_info.name, not g_info.visible)
         g_info.visible = not g_info.visible
+        self.display_panel.scene.show_geometry(g_info.name, g_info.visible)
 
     # 菜单栏 --> 载入文件
 
@@ -458,28 +478,6 @@ class MainWindow:
     def _export_file_dialog_done(self, path):
         self.window.close_dialog()
         self.write(path)
-
-    # 菜单栏 --> 创建凸包
-    def _on_menu_convex_hull(self):
-        ID = self.geometry_treeview.selected_item
-        geometry_info = self.geometry_infos.get(ID)
-        if geometry_info is not None and geometry_info.geometry is not None:
-            convex_hull, _ = geometry_info.geometry.compute_convex_hull()
-
-            temp = GeometryInfo(None)
-            temp.init(geometry_info.name + "_convex_hull", convex_hull, True)
-            self.geometry_infos.push_back(temp)
-            self.add_geometry_widget()
-
-            self.display_panel.scene.add_geometry(
-                temp.name, temp.geometry, self.settings.material)
-
-            self._print_message("[Info] already create convex_hull")
-        else:
-            self._print_message("[WARNING] There is no Mesh.")
-
-    def _on_menu_remesh(self):
-        self.show_remesh_dialog("remesh")
 
     # 菜单栏 --> 关闭子窗口
     def _on_menu_close_all(self):
@@ -599,20 +597,20 @@ class MainWindow:
             path = path[:-9]
             pc = True
 
-        g_info = GeometryInfo(path)
-        if g_info.geometry is not None:
+        temp = GeometryInfo(path)
+        if temp.geometry is not None:
             if pc:
-                self.cloud, _ = GeometryInfo.o3d_to_numpy(g_info.geometry)
+                self.cloud, _ = GeometryInfo.o3d_to_numpy(temp.geometry)
                 self.cloud = self.cloud.tolist()
 
+            self.geometry_infos.push_back(temp)
+            self.add_geometry_widget()
             self.display_panel.scene.add_geometry(
-                g_info.name, g_info.geometry, self.settings.material)
-            bounds = g_info.geometry.get_axis_aligned_bounding_box()
+                temp.name, temp.geometry, self.settings.material)
+            bounds = temp.geometry.get_axis_aligned_bounding_box()
             self.display_panel.setup_camera(
                 60, bounds, bounds.get_center())
 
-            self.geometry_infos.push_back(g_info)
-            self.add_geometry_widget()
             self._print_message("[Info] Successfully read " + path)
         else:
             self._print_message("[ERROR] Failure to read " + path)
@@ -620,8 +618,8 @@ class MainWindow:
     def write(self, path: str):
         if len(self.geometry_infos.geometry_infos) != 0:
             ID = self.geometry_treeview.selected_item
-            g_info = self.geometry_infos.get(ID)
-            if g_info.save(path):
+            temp = self.geometry_infos.get(ID)
+            if temp.save(path):
                 self._print_message("[Info] Successfully save "+path)
             else:
                 self._print_message("[ERROR] Failure to save "+path)
@@ -634,14 +632,13 @@ class MainWindow:
         point_cloud_tf = tf.convert_to_tensor(point_cloud, dtype=tf.float32)
 
         def load(path) -> Tuple[np.ndarray, np.ndarray]:
-            g_info = GeometryInfo.read(path)
-            vertices, faces = GeometryInfo.o3d_to_numpy(g_info.geometry)
+            temp = GeometryInfo.read(path)
+            vertices, faces = GeometryInfo.o3d_to_numpy(temp.geometry)
             return np.float32(vertices), faces
-        
-        def save(path,vertices,faces):
+
+        def save(path, vertices, faces):
             geometry = GeometryInfo.numpy_to_o3d(vertices, faces)
             GeometryInfo.write(geometry, path)
-        
 
         def print_message(message: str):
             self.message = message
@@ -764,13 +761,13 @@ class MainWindow:
 
         print_message("Done")
         gui.Application.instance.post_to_main_thread(
-                    self.window, self._reset_after_train)
+            self.window, self._reset_after_train)
 
     def _change_scene_on_child_thread(self):
         self.display_panel.scene.clear_geometry()
         self.display_panel.scene.add_geometry(
             "__result__", self.mesh_in_train, self.settings.material)
-    
+
     def _reset_after_train(self):
         self.train_status = False
         self.Train_button.enabled = True
@@ -781,6 +778,7 @@ class MainWindow:
             self.display_panel.scene.add_geometry(
                 g_info.name, g_info.geometry, self.settings.material)
             self.display_panel.scene.show_geometry(g_info.name, False)
+
         temp = GeometryInfo(None)
         temp.init("__result__", self.mesh_in_train)
         self.geometry_infos.push_back(temp)
@@ -812,6 +810,30 @@ class MainWindow:
         message_box.add_child(message_box_layout)
         self.window.show_dialog(message_box)
 
+    # 菜单栏 --> 创建凸包
+    def _on_menu_convex_hull(self):
+        ID = self.geometry_treeview.selected_item
+        geometry_info = self.geometry_infos.get(ID)
+        if geometry_info is None:
+            self._print_message("[ERROR] didn't pick a geometry.")
+        elif geometry_info.geometry is None:
+            self._print_message("[ERROR] there is no geometry.")
+        else:
+            convex_hull, _ = geometry_info.geometry.compute_convex_hull()
+
+            temp = GeometryInfo(None)
+            temp.init(geometry_info.name + "_convex_hull", convex_hull)
+            self.geometry_infos.push_back(temp)
+            self.add_geometry_widget()
+            self.display_panel.scene.add_geometry(
+                temp.name, temp.geometry, self.settings.material)
+
+            self._print_message("[Info] Successfully create convex_hull.")
+
+    # 菜单栏 --> remesh 网格模型
+    def _on_menu_remesh(self):
+        self.show_remesh_dialog("remesh")
+
     def show_remesh_dialog(self, title: str):
         remesh_dialog = gui.Dialog(title)
         em = self.window.theme.font_size
@@ -828,12 +850,15 @@ class MainWindow:
         face_num_layout.add_child(self._remesh_face_num)
         layout.add_child(face_num_layout)
 
+        button_1 = gui.Button("cancel")
+        button_1.set_on_clicked(self._dialog_cancel)
         button = gui.Button("apply")
         button.set_on_clicked(self._remesh)
         button_layout = gui.Horiz()
+        button_layout.add_child(button_1)
         button_layout.add_stretch()
         button_layout.add_child(button)
-        layout.add_child(button)
+        layout.add_child(button_layout)
 
         remesh_dialog.add_child(layout)
         self.window.show_dialog(remesh_dialog)
@@ -842,23 +867,100 @@ class MainWindow:
         self._dialog_cancel()
         ID = self.geometry_treeview.selected_item
         geometry_info = self.geometry_infos.get(ID)
-        if geometry_info is None or geometry_info.geometry is None or geometry_info.geometry.get_geometry_type() == o3d.geometry.Geometry.PointCloud:
-            self._print_message(
-                "[WARNING] There is no mesh or the geometry have no face.")
+        if geometry_info is None:
+            self._print_message("[ERROR] didn't pick a geometry.")
+        elif geometry_info.geometry is None:
+            self._print_message("[ERROR] there is no geometry.")
+        elif geometry_info.geometry.get_geometry_type() == o3d.geometry.Geometry.PointCloud:
+            self._print_message("[ERROR] do not support point cloud.")
         else:
             vertices, faces = GeometryInfo.o3d_to_numpy(geometry_info.geometry)
             new_vertices, new_faces = remesh(
                 vertices, faces, self._remesh_face_num.int_value)
-
             g = GeometryInfo.numpy_to_o3d(new_vertices, new_faces)
+
             temp = GeometryInfo(None)
-            temp.init(geometry_info.name+"_manifold_simplied", g, True)
+            temp.init(geometry_info.name+"_manifold_simplied", g)
             self.geometry_infos.push_back(temp)
             self.add_geometry_widget()
-
             self.display_panel.scene.add_geometry(
                 temp.name, temp.geometry, self.settings.material)
+
             self._print_message("[Info] Successfully remesh.")
+    
+    def _on_menu_smooth_average(self):
+        self.show_smooth_dialog(
+            "average smooth:", MainWindow.MENU_SMOOTH_AVERAGE)
+
+    def _on_menu_smooth_laplacian(self):
+        self.show_smooth_dialog(
+            "laplacian smooth:", MainWindow.MENU_SMOOTH_LAPLACIAN)
+    
+    def _on_menu_smooth_taubin(self):
+        self.show_smooth_dialog(
+            "taubin smooth:", MainWindow.MENU_SMOOTH_TAUBIN)
+
+    def show_smooth_dialog(self, title: str, type: int):
+        dialog = gui.Dialog(title)
+        em = self.window.theme.font_size
+        vert = gui.Vert(0, gui.Margins(0.2*em, 0.5*em, 0.2*em, 0.5*em))
+        vert.add_child(gui.Label(title))
+        self._smooth_iteration = gui.NumberEdit(gui.NumberEdit.INT)
+        self._smooth_iteration.int_value = 1
+        horiz = gui.Horiz(0, gui.Margins(0, 0.5*em, 0, 0.5*em))
+        horiz.add_child(gui.Label("smoothing iterations:"))
+        horiz.add_child(self._smooth_iteration)
+        vert.add_child(horiz)
+
+        self._smooth_type = type
+
+        button_1 = gui.Button("cancel")
+        button_1.set_on_clicked(self._dialog_cancel)
+        button = gui.Button("apply")
+        button.set_on_clicked(self._smooth)
+        button_layout = gui.Horiz()
+        button_layout.add_child(button_1)
+        button_layout.add_stretch()
+        button_layout.add_child(button)
+        vert.add_child(button_layout)
+        dialog.add_child(vert)
+        self.window.show_dialog(dialog)
+
+    def _smooth(self):
+        self._dialog_cancel()
+        print(self._smooth_iteration.int_value, self._smooth_type)
+        ID = self.geometry_treeview.selected_item
+        temp = self.geometry_infos.get(ID)
+        if temp is None:
+            self._print_message("[ERROR] didn't pick a geometry.")
+        elif temp.geometry is None:
+            self._print_message("[ERROR] there is no geometry.")
+        elif temp.geometry.get_geometry_type() == o3d.geometry.Geometry.PointCloud:
+            self._print_message("[ERROR] do not support point cloud.")
+        else:
+            smoothed_mesh = None
+            name = temp.name
+            if self._smooth_type == MainWindow.MENU_SMOOTH_AVERAGE:
+                smoothed_mesh = temp.geometry.filter_smooth_simple(
+                    number_of_iterations=self._smooth_iteration.int_value)
+                name += "_average"
+            elif self._smooth_type == MainWindow.MENU_SMOOTH_LAPLACIAN:
+                smoothed_mesh = temp.geometry.filter_smooth_laplacian(
+                    number_of_iterations=self._smooth_iteration.int_value)
+                name += "_laplacian"
+            else:
+                smoothed_mesh = temp.geometry.filter_smooth_taubin(
+                    number_of_iterations=self._smooth_iteration.int_value)
+                name += "_taubin"
+            
+            # 添加平滑后的网格
+            temp = GeometryInfo(None)
+            temp.init(name, smoothed_mesh)
+            self.geometry_infos.push_back(temp)
+            self.add_geometry_widget()
+            self.display_panel.scene.add_geometry(
+                temp.name, temp.geometry, self.settings.material)
+            self._print_message("[Info] Successfully smoothen.")
 
 
 def main():

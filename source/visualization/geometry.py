@@ -1,5 +1,4 @@
 import os
-from sys import path, set_asyncgen_hooks
 from typing import List, Optional, Tuple
 
 import numpy as np
@@ -40,13 +39,14 @@ class GeometryInfo():
             self.num_faces = 0
 
     def init(self, name: str, geometry, visible=True) -> bool:
-        if geometry:
-            self.name = name
-            self.visible = visible
-            self.geometry = geometry
-            self.bulid()
-        else:
-            print("[ERROR] geometry is None.")
+        assert geometry is not None
+        self.name = name
+        self.visible = visible
+        self.geometry = geometry
+        self.bulid()
+
+    def set_geometry(self, geometry):
+        self.geometry = geometry
 
     def set_id(self, id: int):
         self.id = id
