@@ -13,37 +13,52 @@ class GeometryInfo():
     geometry: None
     num_vertices: int
     num_faces: int
+    line_set: None
+    line_set_visible: bool
+    point_cloud: None
+    point_cloud_visible: bool
 
-    def __init__(self, path: str) -> None:
-        """ path: 文件路径或None。 path = None ,则需再使用init()函数 """
+    def __init__(self, path=None, name="", geometry=None) -> None:
+        """ 使用时，仅用 path 参数 或 用 name，geometry 参数
+            path: 文件路径或None。 
+            name: 名称
+            geometry: Point Cloud or Triangle Mesh
+        """
         self.id = -1
         self.visible = True
-        self.file = ""
-        self.name = ""
-        if path is not None:
+        self.line_set_visible = False
+        self.point_cloud_visible = False
+        if path is None:
+            self.file = ""
+            self.name = name
+            self.geometry = geometry
+        else:
             self.file = os.path.basename(path)
             self.name = self.file.split(".")[0]
             self.geometry = GeometryInfo.read(path)
-            self.bulid()
+        self.bulid()
     
     def bulid(self):
         if self.geometry:
             if self.geometry.get_geometry_type() == o3d.geometry.Geometry.PointCloud:
                 self.num_vertices = len(self.geometry.points)
                 self.num_faces = 0
-            else: # o3d.geometry.Geometry.TriangleMesh
+                self.line_set = None
+                self.point_cloud = None
+            else:  # o3d.geometry.Geometry.TriangleMesh
                 self.num_vertices = len(self.geometry.vertices)
                 self.num_faces = len(self.geometry.triangles)
+                self.line_set = o3d.geometry.LineSet.create_from_triangle_mesh(
+                    self.geometry)
+                self.line_set.paint_uniform_color((0.5098, 0.5098, 0.5098))
+                vertices, _ = GeometryInfo.o3d_to_numpy(self.geometry)
+                self.point_cloud = GeometryInfo.numpy_to_o3d(vertices, None)
+                self.point_cloud.paint_uniform_color((1, 0.7569, 0.1451))
         else:
             self.num_vertices = 0
             self.num_faces = 0
-
-    def init(self, name: str, geometry, visible=True) -> bool:
-        assert geometry is not None
-        self.name = name
-        self.visible = visible
-        self.geometry = geometry
-        self.bulid()
+            self.line_set = None
+            self.point_cloud = None
 
     def set_geometry(self, geometry):
         self.geometry = geometry
@@ -52,7 +67,7 @@ class GeometryInfo():
         self.id = id
     
     def save(self, path):
-        GeometryInfo.write(self.geometry, path)
+        return GeometryInfo.write(self.geometry, path)
 
     @staticmethod
     def read(path: str):

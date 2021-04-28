@@ -35,6 +35,8 @@ class MainWindow:
     MENU_SMOOTH_LAPLACIAN = 11
     MENU_SMOOTH_TAUBIN = 12
 
+    MENU_SUBDIVISION_MIDPOINT = 21
+
     def __init__(self):
 
         # 渲染
@@ -72,6 +74,9 @@ class MainWindow:
                 "Create convex hull", MainWindow.MENU_CONVEX_HULL)
             mesh_menu = gui.Menu()
             mesh_menu.add_item(
+                "subdivision", MainWindow.MENU_SUBDIVISION_MIDPOINT)
+            mesh_menu.add_separator()
+            mesh_menu.add_item(
                 "average smooth", MainWindow.MENU_SMOOTH_AVERAGE)
             mesh_menu.add_item(
                 "laplacian smooth", MainWindow.MENU_SMOOTH_LAPLACIAN)
@@ -81,7 +86,7 @@ class MainWindow:
             mesh_menu.add_item(
                 "Remesh:Manifold and Simplify", MainWindow.MENU_REMESH)
 
-            operation_menu.add_menu("mesh layer", mesh_menu)          
+            operation_menu.add_menu("mesh layer", mesh_menu)
             menubar.add_menu("Operations", operation_menu)
 
             view_menu = gui.Menu()
@@ -89,9 +94,9 @@ class MainWindow:
             view_menu.add_separator()
             view_menu.add_item("Show train panel", MainWindow.MENU_SHOW_TRAIN)
             view_menu.set_checked(MainWindow.MENU_SHOW_TRAIN, True)
-            view_menu.set_checked(MainWindow.MENU_SHOW_GEOMETRY, True)
             view_menu.add_item("Show Geometry panel",
                                MainWindow.MENU_SHOW_GEOMETRY)
+            view_menu.set_checked(MainWindow.MENU_SHOW_GEOMETRY, True)
             menubar.add_menu("View", view_menu)
 
             help_menu = gui.Menu()
@@ -115,6 +120,8 @@ class MainWindow:
             MainWindow.MENU_SHOW_TRAIN, self._on_menu_show_train)
         self.window.set_on_menu_item_activated(
             MainWindow.MENU_SHOW_GEOMETRY, self._on_menu_show_geometry)
+        self.window.set_on_menu_item_activated(
+            MainWindow.MENU_SUBDIVISION_MIDPOINT, self._on_menu_subdivision_midpoint)
         self.window.set_on_menu_item_activated(
             MainWindow.MENU_SMOOTH_AVERAGE, self._on_menu_smooth_average)
         self.window.set_on_menu_item_activated(
@@ -286,13 +293,53 @@ class MainWindow:
 
         # 三维模型面板
         self.geometry_panel = gui.Vert(
-            0, gui.Margins(em*0.5, em*0.5, em*0.5, em*0.5))
+            0, gui.Margins(0.1*em, 0.33*em, 0.1*em, 0))
+
+        self.line_button = gui.Button("line:show")
+        self.line_button.horizontal_padding_em = 0.5
+        self.line_button.vertical_padding_em = 0
+        self.line_button.set_on_clicked(self._on_line)
+        self.point_button = gui.Button("point:show")
+        self.point_button.horizontal_padding_em = 0.5
+        self.point_button.vertical_padding_em = 0
+        self.point_button.set_on_clicked(self._on_point)
+
+        show_type_horiz = gui.Horiz(0, gui.Margins(0, 0.1*em, 0, 0))
+        show_type_horiz.add_stretch()
+        show_type_horiz.add_child(self.line_button)
+        show_type_horiz.add_child(gui.Label("   "))
+        show_type_horiz.add_child(self.point_button)
+
+
+        self.geometry_panel.add_child(show_type_horiz)
+
         self.geometry_treeview = gui.TreeView()
         self.geometry_treeview.can_select_items_with_children = False
-        self.geometry_panel.add_child(gui.Label("Geometries:"))
-        # self.geometry_treeview.set_on_selection_changed(self._on_tree)
+        self.geometry_treeview.set_on_selection_changed(self._on_tree)
 
         self.geometry_panel.add_child(self.geometry_treeview)
+
+
+
+        self.show_hide_button = gui.Button("hide")
+        self.show_hide_button.horizontal_padding_em = 0.5
+        self.show_hide_button.vertical_padding_em = 0
+        self.show_hide_button.set_on_clicked(self._on_show_hide)
+
+        delete_button = gui.Button("delete")
+        delete_button.horizontal_padding_em = 0.5
+        delete_button.vertical_padding_em = 0
+        delete_button.set_on_clicked(self._on_delete)
+
+        geometry_button_horiz = gui.Horiz(
+            0, gui.Margins(0, 0.1*em, 0, 0))
+        geometry_button_horiz.add_stretch()
+        geometry_button_horiz.add_child(self.show_hide_button)
+        geometry_button_horiz.add_stretch()
+        geometry_button_horiz.add_child(delete_button)
+        geometry_button_horiz.add_stretch()
+
+        self.geometry_panel.add_child(geometry_button_horiz)
 
         self.window.set_on_layout(self._on_layout)
         self.window.add_child(self.display_panel)
@@ -345,8 +392,67 @@ class MainWindow:
             r.width, self.info_panel.calc_preferred_size(theme).height
         )
 
-    # def _on_tree(self, id):
-    #     pass
+    def _on_tree(self, id):
+        g_info = self.geometry_infos.get(id)
+        if g_info.visible:
+            self.show_hide_button.text = "hide"
+        else:
+            self.show_hide_button.text = "show"
+        if g_info.line_set_visible:
+            self.line_button.text = "line:hide"
+        else:
+            self.line_button.text = "line:show"
+        if g_info.point_cloud_visible:
+            self.point_button.text = "point:hide"
+        else:
+            self.point_button.text = "point:show"
+    
+    def _on_line(self):
+        ID = self.geometry_treeview.selected_item
+        g_info = self.geometry_infos.get(ID)
+        if g_info:
+            g_info.line_set_visible = not g_info.line_set_visible
+            if g_info.line_set and g_info.visible:
+                self.display_panel.scene.show_geometry(
+                    g_info.name+"__line__", g_info.line_set_visible)
+            if g_info.line_set_visible:
+                self.line_button.text = "line:hide"
+            else:
+                self.line_button.text = "line:show"
+        else:
+            self._print_message("[WARNING] please choose a geometry.")
+
+    def _on_point(self):
+        ID = self.geometry_treeview.selected_item
+        g_info = self.geometry_infos.get(ID)
+        if g_info:
+            g_info.point_cloud_visible = not g_info.point_cloud_visible
+            if g_info.point_cloud and g_info.visible:
+                self.display_panel.scene.show_geometry(
+                    g_info.name+"__point__", g_info.point_cloud_visible)
+            if g_info.point_cloud_visible:
+                self.point_button.text = "point:hide"
+            else:
+                self.point_button.text = "point:show"
+        else:
+            self._print_message("[WARNING] please choose a geometry.")
+
+    def add_geometry_widget_and_others(self, name: str, geometry):
+        temp = GeometryInfo(name=name, geometry=geometry)
+        self.geometry_infos.push_back(temp)
+        self.add_geometry_widget()
+        self.display_panel.scene.add_geometry(
+            temp.name, temp.geometry, self.settings.material)
+        if temp.line_set:
+            self.display_panel.scene.add_geometry(
+                temp.name+"__line__", temp.line_set, self.settings.material)
+            self.display_panel.scene.show_geometry(
+                temp.name+"__line__", temp.line_set_visible)
+        if temp.point_cloud:
+            self.display_panel.scene.add_geometry(
+                temp.name+"__point__", temp.point_cloud, self.settings.material)
+            self.display_panel.scene.show_geometry(
+                temp.name+"__point__", temp.point_cloud_visible)
 
     def add_geometry_widget(self):
         # 添加geometry部件
@@ -355,57 +461,56 @@ class MainWindow:
         self.geometry_infos.geometry_infos[-1].set_id(ID)
         self.geometry_treeview.selected_item = ID
 
-    def remove_on_child_thread(self):
-        threading.Thread(target=self.remove_geometry_widget).start()
-
-    def remove_geometry_widget(self):
-        ID = self.geometry_treeview.selected_item
-        self.geometry_treeview.selected_item = 0
-        # 移除geometry部件
-        self.geometry_treeview.remove_item(ID)
-        g = self.geometry_infos.get(ID)
-        # 从画布和geometry_infos中移除
-        self.display_panel.scene.remove_geometry(g.name)
-        self.geometry_infos.remove(ID)
-        # 设置geometry_panel中选中的项目
-        if len(self.geometry_infos.geometry_infos) > 0:
-            self.geometry_treeview.selected_item = self.geometry_infos.geometry_infos[0].id
-        else:
-            self.geometry_treeview.selected_item = 0
-
     def geometry_widget(self, geometry_info: GeometryInfo):
         widget = gui.CollapsableVert(
             geometry_info.name, 0, gui.Margins(0, 0, 0, 0))
         widget.set_is_open(False)
-
-        horiz_1 = gui.Horiz(0, gui.Margins(0, 0, 0, 0))
-        horiz_1.add_child(
+        widget.add_child(gui.Label("File:"+geometry_info.file))
+        widget.add_child(
             gui.Label("vertices:"+str(geometry_info.num_vertices)))
-        button_1 = gui.Button("delete")
-        button_1.horizontal_padding_em = 0.5
-        button_1.vertical_padding_em = 0
-        button_1.set_on_clicked(self.remove_on_child_thread)
-        horiz_1.add_stretch()
-        horiz_1.add_child(button_1)
-        widget.add_child(horiz_1)
-
-        horiz_2 = gui.Horiz(0, gui.Margins(0, 0, 0, 0))
-        horiz_2.add_child(gui.Label("faces:"+str(geometry_info.num_faces)))
-        button_2 = gui.Button("hide/show")
-        button_2.horizontal_padding_em = 1
-        button_2.vertical_padding_em = 0
-        button_2.set_on_clicked(self._on_show_hide)
-        horiz_2.add_stretch()
-        horiz_2.add_child(button_2)
-        widget.add_child(horiz_2)
-
+        widget.add_child(gui.Label("faces:"+str(geometry_info.num_faces)))
         return widget
 
     def _on_show_hide(self):
         ID = self.geometry_treeview.selected_item
         g_info = self.geometry_infos.get(ID)
-        g_info.visible = not g_info.visible
-        self.display_panel.scene.show_geometry(g_info.name, g_info.visible)
+        if g_info:
+            g_info.visible = not g_info.visible
+            self.display_panel.scene.show_geometry(g_info.name, g_info.visible)
+            if g_info.visible:
+                self.show_hide_button.text = "hide"
+                if g_info.line_set:
+                    self.display_panel.scene.show_geometry(
+                        g_info.name+"__line__", g_info.line_set_visible)
+                if g_info.point_cloud:
+                    self.display_panel.scene.show_geometry(
+                        g_info.name+"__point__", g_info.point_cloud_visible)
+            else:
+                self.show_hide_button.text = "show"
+                if g_info.line_set:
+                    self.display_panel.scene.show_geometry(
+                        g_info.name+"__line__", False)
+                if g_info.point_cloud:
+                    self.display_panel.scene.show_geometry(
+                        g_info.name+"__point__", False)
+        else:
+            self._print_message("[WARNING] please choose a geometry.")
+
+    def _on_delete(self):
+        if len(self.geometry_infos.geometry_infos) != 0:
+            ID = self.geometry_treeview.selected_item
+            self.geometry_treeview.selected_item = 0
+            # 移除geometry部件
+            self.geometry_treeview.remove_item(ID)
+            g = self.geometry_infos.get(ID)
+            # 从画布和geometry_infos中移除
+            self.display_panel.scene.remove_geometry(g.name)
+            self.geometry_infos.remove(ID)
+            # 设置geometry_panel中选中的项目
+            if len(self.geometry_infos.geometry_infos) > 0:
+                self.geometry_treeview.selected_item = self.geometry_infos.geometry_infos[0].id
+            else:
+                self.geometry_treeview.selected_item = 0
 
     # 菜单栏 --> 载入文件
 
@@ -610,6 +715,17 @@ class MainWindow:
             bounds = temp.geometry.get_axis_aligned_bounding_box()
             self.display_panel.setup_camera(
                 60, bounds, bounds.get_center())
+            
+            if temp.line_set:
+                self.display_panel.scene.add_geometry(
+                    temp.name+"__line__", temp.line_set, self.settings.material)
+                self.display_panel.scene.show_geometry(
+                    temp.name+"__line__", temp.line_set_visible)
+            if temp.point_cloud:
+                self.display_panel.scene.add_geometry(
+                    temp.name+"__point__", temp.point_cloud, self.settings.material)
+                self.display_panel.scene.show_geometry(
+                    temp.name+"__point__", temp.point_cloud_visible)
 
             self._print_message("[Info] Successfully read " + path)
         else:
@@ -779,12 +895,8 @@ class MainWindow:
                 g_info.name, g_info.geometry, self.settings.material)
             self.display_panel.scene.show_geometry(g_info.name, False)
 
-        temp = GeometryInfo(None)
-        temp.init("__result__", self.mesh_in_train)
-        self.geometry_infos.push_back(temp)
-        self.add_geometry_widget()
-        self.display_panel.scene.add_geometry(
-            temp.name, temp.geometry, self.settings.material)
+        self.add_geometry_widget_and_others(
+            name="__result__", geometry=self.mesh_in_train)
 
     # 消息面板
     def _print_message_on_child_thread(self):
@@ -821,12 +933,8 @@ class MainWindow:
         else:
             convex_hull, _ = geometry_info.geometry.compute_convex_hull()
 
-            temp = GeometryInfo(None)
-            temp.init(geometry_info.name + "_convex_hull", convex_hull)
-            self.geometry_infos.push_back(temp)
-            self.add_geometry_widget()
-            self.display_panel.scene.add_geometry(
-                temp.name, temp.geometry, self.settings.material)
+            self.add_geometry_widget_and_others(
+                name=geometry_info.name + "_convex_hull", geometry=convex_hull)
 
             self._print_message("[Info] Successfully create convex_hull.")
 
@@ -850,14 +958,16 @@ class MainWindow:
         face_num_layout.add_child(self._remesh_face_num)
         layout.add_child(face_num_layout)
 
-        button_1 = gui.Button("cancel")
-        button_1.set_on_clicked(self._dialog_cancel)
-        button = gui.Button("apply")
-        button.set_on_clicked(self._remesh)
+        cancel_button = gui.Button("cancel")
+        cancel_button.set_on_clicked(self._dialog_cancel)
+        apply_button = gui.Button("apply")
+        apply_button.set_on_clicked(self._remesh)
         button_layout = gui.Horiz()
-        button_layout.add_child(button_1)
         button_layout.add_stretch()
-        button_layout.add_child(button)
+        button_layout.add_child(cancel_button)
+        button_layout.add_stretch()
+        button_layout.add_child(apply_button)
+        button_layout.add_stretch()
         layout.add_child(button_layout)
 
         remesh_dialog.add_child(layout)
@@ -879,15 +989,57 @@ class MainWindow:
                 vertices, faces, self._remesh_face_num.int_value)
             g = GeometryInfo.numpy_to_o3d(new_vertices, new_faces)
 
-            temp = GeometryInfo(None)
-            temp.init(geometry_info.name+"_manifold_simplied", g)
-            self.geometry_infos.push_back(temp)
-            self.add_geometry_widget()
-            self.display_panel.scene.add_geometry(
-                temp.name, temp.geometry, self.settings.material)
+            self.add_geometry_widget_and_others(
+                name=geometry_info.name+"_manifold_simplied", geometry=g)
 
             self._print_message("[Info] Successfully remesh.")
     
+    def _on_menu_subdivision_midpoint(self):
+        dialog = gui.Dialog("subdivision")
+        em = self.window.theme.font_size
+        vert = gui.Vert(0, gui.Margins(0.2*em, 0.5*em, 0.2*em, 0.5*em))
+        vert.add_child(gui.Label("we compute the midpoint of each side per triangle"))
+        vert.add_child(gui.Label("and divide the triangle into four smaller triangles."))
+        self._subdivision_iteration = gui.NumberEdit(gui.NumberEdit.INT)
+        self._subdivision_iteration.int_value = 1
+        horiz = gui.Horiz(0, gui.Margins(0, 0.5*em, 0, 0.5*em))
+        horiz.add_child(gui.Label("subdivision iterations:"))
+        horiz.add_child(self._subdivision_iteration)
+        vert.add_child(horiz)
+
+        cancel_button = gui.Button("cancel")
+        cancel_button.set_on_clicked(self._dialog_cancel)
+        apply_button = gui.Button("apply")
+        apply_button.set_on_clicked(self._subdivision)
+        button_layout = gui.Horiz()
+        button_layout.add_stretch()
+        button_layout.add_child(cancel_button)
+        button_layout.add_stretch()
+        button_layout.add_child(apply_button)
+        button_layout.add_stretch()
+        vert.add_child(button_layout)
+        dialog.add_child(vert)
+        self.window.show_dialog(dialog)
+           
+    def _subdivision(self):
+        self._dialog_cancel()
+        ID = self.geometry_treeview.selected_item
+        temp = self.geometry_infos.get(ID)
+        if temp is None:
+            self._print_message("[ERROR] didn't pick a geometry.")
+        elif temp.geometry is None:
+            self._print_message("[ERROR] there is no geometry.")
+        elif temp.geometry.get_geometry_type() == o3d.geometry.Geometry.PointCloud:
+            self._print_message("[ERROR] do not support point cloud.")
+        else:
+            mesh_out = temp.geometry.subdivide_midpoint(
+                number_of_iterations=self._subdivision_iteration.int_value)
+            # 移除原来的网格
+            self._on_delete()
+            # 修改后添加
+            self.add_geometry_widget_and_others(temp.name, mesh_out)
+            
+
     def _on_menu_smooth_average(self):
         self.show_smooth_dialog(
             "average smooth:", MainWindow.MENU_SMOOTH_AVERAGE)
@@ -895,7 +1047,7 @@ class MainWindow:
     def _on_menu_smooth_laplacian(self):
         self.show_smooth_dialog(
             "laplacian smooth:", MainWindow.MENU_SMOOTH_LAPLACIAN)
-    
+
     def _on_menu_smooth_taubin(self):
         self.show_smooth_dialog(
             "taubin smooth:", MainWindow.MENU_SMOOTH_TAUBIN)
@@ -914,14 +1066,16 @@ class MainWindow:
 
         self._smooth_type = type
 
-        button_1 = gui.Button("cancel")
-        button_1.set_on_clicked(self._dialog_cancel)
-        button = gui.Button("apply")
-        button.set_on_clicked(self._smooth)
+        cancel_button = gui.Button("cancel")
+        cancel_button.set_on_clicked(self._dialog_cancel)
+        apply_button = gui.Button("apply")
+        apply_button.set_on_clicked(self._smooth)
         button_layout = gui.Horiz()
-        button_layout.add_child(button_1)
         button_layout.add_stretch()
-        button_layout.add_child(button)
+        button_layout.add_child(cancel_button)
+        button_layout.add_stretch()
+        button_layout.add_child(apply_button)
+        button_layout.add_stretch()
         vert.add_child(button_layout)
         dialog.add_child(vert)
         self.window.show_dialog(dialog)
@@ -952,14 +1106,10 @@ class MainWindow:
                 smoothed_mesh = temp.geometry.filter_smooth_taubin(
                     number_of_iterations=self._smooth_iteration.int_value)
                 name += "_taubin"
-            
             # 添加平滑后的网格
-            temp = GeometryInfo(None)
-            temp.init(name, smoothed_mesh)
-            self.geometry_infos.push_back(temp)
-            self.add_geometry_widget()
-            self.display_panel.scene.add_geometry(
-                temp.name, temp.geometry, self.settings.material)
+            self.add_geometry_widget_and_others(
+                name=name, geometry=smoothed_mesh)
+
             self._print_message("[Info] Successfully smoothen.")
 
 
