@@ -82,7 +82,7 @@ class MainWindow:
                 "translate/rotation/scale", MainWindow.MENU_TRANSFORMATION)
             mesh_menu = gui.Menu()
             mesh_menu.add_item(
-                "midpoint subdivision", MainWindow.MENU_SUBDIVISION_MIDPOINT)  
+                "midpoint subdivision", MainWindow.MENU_SUBDIVISION_MIDPOINT)
             # mesh_menu.add_item(
             #     "loop subdivision", MainWindow.MENU_SUBDIVISION_LOOP)
             mesh_menu.add_separator()
@@ -96,7 +96,7 @@ class MainWindow:
             mesh_menu.add_item(
                 "Remesh:Manifold and Simplify", MainWindow.MENU_REMESH)
             mesh_menu.add_item(
-                "Simplication: Average",MainWindow.MENU_SIMPLIFICATION_AVERAGE)
+                "Simplication: Average", MainWindow.MENU_SIMPLIFICATION_AVERAGE)
             mesh_menu.add_item(
                 "Simplication: Quadric Error Metric Decimation",
                 MainWindow.MENU_SIMPLIFICATION_QUADRIC_DECIMATION)
@@ -142,7 +142,7 @@ class MainWindow:
         # self.window.set_on_menu_item_activated(
         #     MainWindow.MENU_SUBDIVISION_LOOP, self._on_menu_subdivision_loop)
         self.window.set_on_menu_item_activated(
-            MainWindow.MENU_SMOOTH_HUMPHREY, self._on_menu_smooth_average)
+            MainWindow.MENU_SMOOTH_HUMPHREY, self._on_menu_smooth_humphrey)
         self.window.set_on_menu_item_activated(
             MainWindow.MENU_SMOOTH_LAPLACIAN, self._on_menu_smooth_laplacian)
         self.window.set_on_menu_item_activated(
@@ -1044,7 +1044,6 @@ class MainWindow:
         vert.add_child(horiz_5)
         vert.add_child(horiz_6)
         vert.add_child(horiz_7)
-        
 
         cancel_button = gui.Button("cancel")
         cancel_button.set_on_clicked(self._dialog_cancel)
@@ -1084,8 +1083,10 @@ class MainWindow:
             # 画布中重绘
             self.display_panel.scene.remove_geometry(geometry_info.name)
             if geometry_info.line_set:
-                self.display_panel.scene.remove_geometry(geometry_info.name+"__line__")
-                self.display_panel.scene.remove_geometry(geometry_info.name+"__point__")
+                self.display_panel.scene.remove_geometry(
+                    geometry_info.name+"__line__")
+                self.display_panel.scene.remove_geometry(
+                    geometry_info.name+"__point__")
             geometry_info.bulid()
             self.display_panel.scene.add_geometry(
                 geometry_info.name, geometry_info.geometry, self.settings.material)
@@ -1103,38 +1104,64 @@ class MainWindow:
 
     # 菜单栏 --> remesh 网格模型
     def _on_menu_remesh(self):
+        info = []
+        info.append("take a triangle mesh and generate a manifold mesh.")
+        info.append("Then,for efficiency purpose,simplify the mesh.")
         self.show_remesh_dialog("remesh")
+        self.show_functional_dialog(
+            "remesh", info, MainWindow.MENU_REMESH, self._remesh)
 
-    def show_remesh_dialog(self, title: str):
-        remesh_dialog = gui.Dialog(title)
-        em = self.window.theme.font_size
-        layout = gui.Vert(0, gui.Margins(0.2*em, 0.5*em, 0.2*em, 0.5*em))
-        layout.add_child(
-            gui.Label("take a triangle mesh and generate a manifold mesh."))
-        layout.add_child(
-            gui.Label("Then,for efficiency purpose,simplify the mesh."))
+    def _on_menu_subdivision_midpoint(self):
+        info = []
+        info.append("we compute the midpoint of each side per triangle")
+        info.append("and divide the triangle into four smaller triangles.")
+        self.show_functional_dialog(
+            "subdivision", info, MainWindow.MENU_SUBDIVISION_MIDPOINT, self._subdivision)
 
-        self._remesh_face_num = gui.NumberEdit(gui.NumberEdit.INT)
-        self._remesh_face_num.int_value = 2000
-        face_num_layout = gui.Horiz(0, gui.Margins(0, 0.5*em, 0, 0.5*em))
-        face_num_layout.add_child(gui.Label("simplified mesh's face number:"))
-        face_num_layout.add_child(self._remesh_face_num)
-        layout.add_child(face_num_layout)
+    def _on_menu_subdivision_loop(self):
+        info = []
+        info.append("Function subdivide mesh using Loop’s algorithm.")
+        info.append(
+            "Loop, Smooth subdivision surfaces based on triangles, 1987.")
+        self.show_functional_dialog(
+            "subdivision", info, MainWindow.MENU_SUBDIVISION_LOOP, self._subdivision)
 
-        cancel_button = gui.Button("cancel")
-        cancel_button.set_on_clicked(self._dialog_cancel)
-        apply_button = gui.Button("apply")
-        apply_button.set_on_clicked(self._remesh)
-        button_layout = gui.Horiz()
-        button_layout.add_stretch()
-        button_layout.add_child(cancel_button)
-        button_layout.add_stretch()
-        button_layout.add_child(apply_button)
-        button_layout.add_stretch()
-        layout.add_child(button_layout)
+    def _on_menu_smooth_humphrey(self):
+        info = []
+        info.append("use laplacian smoothing and Humphrey filtering.")
+        info.append(
+            "Articles \"Improved Laplacian Smoothing of Noisy Surface Meshes\"")
+        info.append("J. Vollmer, R. Mencl, and H. Muller")
+        self.show_functional_dialog(
+            "humphrey smooth:", info, MainWindow.MENU_SMOOTH_HUMPHREY, self._smooth)
 
-        remesh_dialog.add_child(layout)
-        self.window.show_dialog(remesh_dialog)
+    def _on_menu_smooth_laplacian(self):
+        info = []
+        info.append("use laplacian smoothing.")
+        self.show_functional_dialog(
+            "laplacian smooth:", info, MainWindow.MENU_SMOOTH_LAPLACIAN, self._smooth)
+
+    def _on_menu_smooth_taubin(self):
+        info = []
+        info.append("use laplacian smoothing and taubin filtering.")
+        info.append(
+            "Articles \"Improved Laplacian Smoothing of Noisy Surface Meshes\"")
+        info.append("J. Vollmer, R. Mencl, and H. Muller")
+        self.show_functional_dialog(
+            "taubin smooth:", info, MainWindow.MENU_SMOOTH_TAUBIN, self._smooth)
+
+    def _on_menu_simplification_average(self):
+        info = []
+        info.append("simplify mesh using vertex clustering.")
+        info.append("The vertex positions are computed by the averaging.")
+        self.show_functional_dialog(
+            "simplification", info, MainWindow.MENU_SIMPLIFICATION_AVERAGE, self._simplification)
+
+    def _on_menu_simplification_quadric_decimation(self):
+        info = []
+        info.append("simplify mesh using Quadric Error Metric Decimation.")
+        self.show_functional_dialog(
+            "simplification", info, MainWindow.MENU_SIMPLIFICATION_QUADRIC_DECIMATION, self._simplification)
 
     def _remesh(self):
         self._dialog_cancel()
@@ -1157,48 +1184,6 @@ class MainWindow:
 
             self._print_message("[Info] Successfully remesh.")
 
-    def _on_menu_subdivision_midpoint(self):
-        info = []
-        info.append("we compute the midpoint of each side per triangle")
-        info.append("and divide the triangle into four smaller triangles.")
-        self.show_subdivision_dialog(
-            info, MainWindow.MENU_SUBDIVISION_MIDPOINT)
-    
-    def _on_menu_subdivision_loop(self):
-        info = []
-        info.append("Function subdivide mesh using Loop’s algorithm.")
-        info.append("Loop, Smooth subdivision surfaces based on triangles, 1987.")
-        self.show_subdivision_dialog(info, MainWindow.MENU_SUBDIVISION_LOOP)
-
-    def show_subdivision_dialog(self, info, type: int):
-        dialog = gui.Dialog("subdivision")
-        em = self.window.theme.font_size
-        vert = gui.Vert(0, gui.Margins(0.2*em, 0.5*em, 0.2*em, 0.5*em))
-        for i in info:
-            vert.add_child(gui.Label(i))
-        self._subdivision_iteration = gui.NumberEdit(gui.NumberEdit.INT)
-        self._subdivision_iteration.int_value = 1
-        horiz = gui.Horiz(0, gui.Margins(0, 0.5*em, 0, 0.5*em))
-        horiz.add_child(gui.Label("subdivision iterations:"))
-        horiz.add_child(self._subdivision_iteration)
-        vert.add_child(horiz)
-
-        self._subdivision_type = type
-
-        cancel_button = gui.Button("cancel")
-        cancel_button.set_on_clicked(self._dialog_cancel)
-        apply_button = gui.Button("apply")
-        apply_button.set_on_clicked(self._subdivision)
-        button_layout = gui.Horiz()
-        button_layout.add_stretch()
-        button_layout.add_child(cancel_button)
-        button_layout.add_stretch()
-        button_layout.add_child(apply_button)
-        button_layout.add_stretch()
-        vert.add_child(button_layout)
-        dialog.add_child(vert)
-        self.window.show_dialog(dialog)
-
     def _subdivision(self):
         self._dialog_cancel()
         id = self.geometry_treeview.selected_item
@@ -1211,10 +1196,10 @@ class MainWindow:
             self._print_message("[ERROR] do not support point cloud.")
         else:
             mesh_out = None
-            if self._subdivision_type == MainWindow.MENU_SUBDIVISION_MIDPOINT:
+            if self._function_type == MainWindow.MENU_SUBDIVISION_MIDPOINT:
                 mesh_out = temp.geometry.subdivide_midpoint(
                     number_of_iterations=self._subdivision_iteration.int_value)
-            elif self._subdivision_type == MainWindow.MENU_SUBDIVISION_LOOP:
+            elif self._function_type == MainWindow.MENU_SUBDIVISION_LOOP:
                 mesh_out = temp.geometry.subdivide_loop(
                     number_of_iterations=self._subdivision_iteration.int_value)
             # 移除原来的网格
@@ -1222,49 +1207,8 @@ class MainWindow:
             # 修改后添加
             self.add_geometry_widget_and_others(temp.name, mesh_out)
 
-    def _on_menu_smooth_average(self):
-        self.show_smooth_dialog(
-            "humphrey smooth:", MainWindow.MENU_SMOOTH_HUMPHREY)
-
-    def _on_menu_smooth_laplacian(self):
-        self.show_smooth_dialog(
-            "laplacian smooth:", MainWindow.MENU_SMOOTH_LAPLACIAN)
-
-    def _on_menu_smooth_taubin(self):
-        self.show_smooth_dialog(
-            "taubin smooth:", MainWindow.MENU_SMOOTH_TAUBIN)
-
-    def show_smooth_dialog(self, title: str, type: int):
-        dialog = gui.Dialog(title)
-        em = self.window.theme.font_size
-        vert = gui.Vert(0, gui.Margins(0.2*em, 0.5*em, 0.2*em, 0.5*em))
-        vert.add_child(gui.Label(title))
-        self._smooth_iteration = gui.NumberEdit(gui.NumberEdit.INT)
-        self._smooth_iteration.int_value = 3
-        horiz = gui.Horiz(0, gui.Margins(0, 0.5*em, 0, 0.5*em))
-        horiz.add_child(gui.Label("smoothing iterations:"))
-        horiz.add_child(self._smooth_iteration)
-        vert.add_child(horiz)
-
-        self._smooth_type = type
-
-        cancel_button = gui.Button("cancel")
-        cancel_button.set_on_clicked(self._dialog_cancel)
-        apply_button = gui.Button("apply")
-        apply_button.set_on_clicked(self._smooth)
-        button_layout = gui.Horiz()
-        button_layout.add_stretch()
-        button_layout.add_child(cancel_button)
-        button_layout.add_stretch()
-        button_layout.add_child(apply_button)
-        button_layout.add_stretch()
-        vert.add_child(button_layout)
-        dialog.add_child(vert)
-        self.window.show_dialog(dialog)
-
     def _smooth(self):
         self._dialog_cancel()
-        print(self._smooth_iteration.int_value, self._smooth_type)
         id = self.geometry_treeview.selected_item
         temp = self.geometry_infos.get(id)
         if temp is None:
@@ -1279,11 +1223,11 @@ class MainWindow:
             mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
             name = temp.name
             # 进行平滑操作
-            if self._smooth_type == MainWindow.MENU_SMOOTH_HUMPHREY:
+            if self._function_type == MainWindow.MENU_SMOOTH_HUMPHREY:
                 trimesh.smoothing.filter_humphrey(
                     mesh=mesh, iterations=self._smooth_iteration.int_value)
                 name += "_humphrey"
-            elif self._smooth_type == MainWindow.MENU_SMOOTH_LAPLACIAN:
+            elif self._function_type == MainWindow.MENU_SMOOTH_LAPLACIAN:
                 trimesh.smoothing.filter_laplacian(
                     mesh=mesh, iterations=self._smooth_iteration.int_value)
                 name += "_laplacian"
@@ -1298,62 +1242,7 @@ class MainWindow:
                 name=name, geometry=smoothed_mesh)
 
             self._print_message("[Info] Successfully smoothen.")
-    
-    def _on_menu_simplification_average(self):
-        info = []
-        info.append("simplify mesh using vertex clustering.")
-        info.append("The vertex positions are computed by the averaging.")
-        # self.show_simplification_dialog(
-        #     info, MainWindow.MENU_SIMPLIFICATION_AVERAGE)
-        self.show_functional_dialog(
-            "simplification", info, MainWindow.MENU_SIMPLIFICATION_AVERAGE, self._simplification)
 
-    def _on_menu_simplification_quadric_decimation(self):
-        info = []
-        info.append("simplify mesh using Quadric Error Metric Decimation.")
-        # self.show_simplification_dialog(
-        #     info, MainWindow.MENU_SIMPLIFICATION_QUADRIC_DECIMATION)
-        self.show_functional_dialog(
-            "simplification", info, MainWindow.MENU_SIMPLIFICATION_QUADRIC_DECIMATION, self._simplification)
-
-    def show_simplification_dialog(self, info, type):
-        dialog = gui.Dialog("simplification")
-        em = self.window.theme.font_size
-        vert = gui.Vert(0, gui.Margins(0.2*em, 0.5*em, 0.2*em, 0.5*em))
-        for i in info:
-            vert.add_child(gui.Label(i))
-        
-        if type == MainWindow.MENU_SIMPLIFICATION_AVERAGE:
-            self._simplification_parameter = gui.NumberEdit(
-                gui.NumberEdit.DOUBLE)
-            self._simplification_parameter.double_value = 0.028284
-            horiz = gui.Horiz(0, gui.Margins(0, 0.5*em, 0, 0.5*em))
-            horiz.add_child(gui.Label("voxel size:"))
-            horiz.add_child(self._simplification_parameter)
-            vert.add_child(horiz)
-        elif type == MainWindow.MENU_SIMPLIFICATION_QUADRIC_DECIMATION:
-            self._simplification_parameter = gui.NumberEdit(gui.NumberEdit.INT)
-            horiz = gui.Horiz(0, gui.Margins(0, 0.5*em, 0, 0.5*em))
-            horiz.add_child(gui.Label("target face number:"))
-            horiz.add_child(self._simplification_parameter)
-            vert.add_child(horiz)
-
-        self._simplification_type = type
-
-        cancel_button = gui.Button("cancel")
-        cancel_button.set_on_clicked(self._dialog_cancel)
-        apply_button = gui.Button("apply")
-        apply_button.set_on_clicked(self._simplification)
-        button_layout = gui.Horiz()
-        button_layout.add_stretch()
-        button_layout.add_child(cancel_button)
-        button_layout.add_stretch()
-        button_layout.add_child(apply_button)
-        button_layout.add_stretch()
-        vert.add_child(button_layout)
-        dialog.add_child(vert)
-        self.window.show_dialog(dialog)
-    
     def _simplification(self):
         self._dialog_cancel()
         id = self.geometry_treeview.selected_item
@@ -1366,26 +1255,33 @@ class MainWindow:
             self._print_message("[ERROR] do not support point cloud.")
         else:
             mesh = None
-            if self._simplification_type == MainWindow.MENU_SIMPLIFICATION_AVERAGE:
+            if self._function_type == MainWindow.MENU_SIMPLIFICATION_AVERAGE:
                 mesh = temp.geometry.simplify_vertex_clustering(
                     self._simplification_parameter.double_value)
-            elif self._simplification_type == MainWindow.MENU_SIMPLIFICATION_QUADRIC_DECIMATION:
+            elif self._function_type == MainWindow.MENU_SIMPLIFICATION_QUADRIC_DECIMATION:
                 mesh = temp.geometry.simplify_quadric_decimation(
                     self._simplification_parameter.int_value)
              # 移除原来的网格
             self._on_delete()
             # 修改后添加
             self.add_geometry_widget_and_others(temp.name, mesh)
-    
+
     def show_functional_dialog(self, title: str, info, type: int, apply_button_function):
         dialog = gui.Dialog(title)
+        self._function_type = type
         em = self.window.theme.font_size
         vert = gui.Vert(0, gui.Margins(0.2*em, 0.5*em, 0.2*em, 0.5*em))
         for i in info:
             vert.add_child(gui.Label(i))
 
-        if type == MainWindow.MENU_SIMPLIFICATION_AVERAGE:
-            self._simplification_type = type
+        if type == MainWindow.MENU_REMESH:
+            self._remesh_face_num = gui.NumberEdit(gui.NumberEdit.INT)
+            self._remesh_face_num.int_value = 2000
+            horiz = gui.Horiz(0, gui.Margins(0, 0.5*em, 0, 0.5*em))
+            horiz.add_child(gui.Label("target face number:"))
+            horiz.add_child(self._remesh_face_num)
+            vert.add_child(horiz)
+        elif type == MainWindow.MENU_SIMPLIFICATION_AVERAGE:
             self._simplification_parameter = gui.NumberEdit(
                 gui.NumberEdit.DOUBLE)
             self._simplification_parameter.double_value = 0.028284
@@ -1394,11 +1290,24 @@ class MainWindow:
             horiz.add_child(self._simplification_parameter)
             vert.add_child(horiz)
         elif type == MainWindow.MENU_SIMPLIFICATION_QUADRIC_DECIMATION:
-            self._simplification_type = type
             self._simplification_parameter = gui.NumberEdit(gui.NumberEdit.INT)
             horiz = gui.Horiz(0, gui.Margins(0, 0.5*em, 0, 0.5*em))
             horiz.add_child(gui.Label("target face number:"))
             horiz.add_child(self._simplification_parameter)
+            vert.add_child(horiz)
+        elif type == MainWindow.MENU_SUBDIVISION_LOOP or type == MainWindow.MENU_SUBDIVISION_MIDPOINT:
+            self._subdivision_iteration = gui.NumberEdit(gui.NumberEdit.INT)
+            self._subdivision_iteration.int_value = 1
+            horiz = gui.Horiz(0, gui.Margins(0, 0.5*em, 0, 0.5*em))
+            horiz.add_child(gui.Label("subdivision iterations:"))
+            horiz.add_child(self._subdivision_iteration)
+            vert.add_child(horiz)
+        elif type == MainWindow.MENU_SMOOTH_HUMPHREY or type == MainWindow.MENU_SMOOTH_LAPLACIAN or type == MainWindow.MENU_SMOOTH_TAUBIN:
+            self._smooth_iteration = gui.NumberEdit(gui.NumberEdit.INT)
+            self._smooth_iteration.int_value = 3
+            horiz = gui.Horiz(0, gui.Margins(0, 0.5*em, 0, 0.5*em))
+            horiz.add_child(gui.Label("smoothing iterations:"))
+            horiz.add_child(self._smooth_iteration)
             vert.add_child(horiz)
 
         cancel_button = gui.Button("cancel")
