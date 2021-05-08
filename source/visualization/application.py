@@ -36,6 +36,12 @@ class MainWindow:
     MENU_SMOOTH_TAUBIN = 11
 
     MENU_SUBDIVISION_MIDPOINT = 12
+    MENU_SUBDIVISION_LOOP = 13
+
+    MENU_TRANSFORMATION = 14
+
+    MENU_SIMPLIFICATION_AVERAGE = 21
+    MENU_SIMPLIFICATION_QUADRIC_DECIMATION = 22
 
     def __init__(self):
 
@@ -72,9 +78,13 @@ class MainWindow:
             operation_menu = gui.Menu()
             operation_menu.add_item(
                 "Create convex hull", MainWindow.MENU_CONVEX_HULL)
+            operation_menu.add_item(
+                "translate/rotation/scale", MainWindow.MENU_TRANSFORMATION)
             mesh_menu = gui.Menu()
             mesh_menu.add_item(
-                "subdivision", MainWindow.MENU_SUBDIVISION_MIDPOINT)
+                "midpoint subdivision", MainWindow.MENU_SUBDIVISION_MIDPOINT)  
+            # mesh_menu.add_item(
+            #     "loop subdivision", MainWindow.MENU_SUBDIVISION_LOOP)
             mesh_menu.add_separator()
             mesh_menu.add_item(
                 "humphrey smooth", MainWindow.MENU_SMOOTH_HUMPHREY)
@@ -85,6 +95,11 @@ class MainWindow:
             mesh_menu.add_separator()
             mesh_menu.add_item(
                 "Remesh:Manifold and Simplify", MainWindow.MENU_REMESH)
+            mesh_menu.add_item(
+                "Simplication: Average",MainWindow.MENU_SIMPLIFICATION_AVERAGE)
+            mesh_menu.add_item(
+                "Simplication: Quadric Error Metric Decimation",
+                MainWindow.MENU_SIMPLIFICATION_QUADRIC_DECIMATION)
 
             operation_menu.add_menu("mesh layer", mesh_menu)
             menubar.add_menu("Operations", operation_menu)
@@ -111,6 +126,8 @@ class MainWindow:
         self.window.set_on_menu_item_activated(
             MainWindow.MENU_CONVEX_HULL, self._on_menu_convex_hull)
         self.window.set_on_menu_item_activated(
+            MainWindow.MENU_TRANSFORMATION, self._on_menu_transformation)
+        self.window.set_on_menu_item_activated(
             MainWindow.MENU_REMESH, self._on_menu_remesh)
         self.window.set_on_menu_item_activated(
             MainWindow.MENU_ABOUT, self._on_menu_about)
@@ -122,12 +139,18 @@ class MainWindow:
             MainWindow.MENU_SHOW_GEOMETRY, self._on_menu_show_geometry)
         self.window.set_on_menu_item_activated(
             MainWindow.MENU_SUBDIVISION_MIDPOINT, self._on_menu_subdivision_midpoint)
+        # self.window.set_on_menu_item_activated(
+        #     MainWindow.MENU_SUBDIVISION_LOOP, self._on_menu_subdivision_loop)
         self.window.set_on_menu_item_activated(
             MainWindow.MENU_SMOOTH_HUMPHREY, self._on_menu_smooth_average)
         self.window.set_on_menu_item_activated(
             MainWindow.MENU_SMOOTH_LAPLACIAN, self._on_menu_smooth_laplacian)
         self.window.set_on_menu_item_activated(
             MainWindow.MENU_SMOOTH_TAUBIN, self._on_menu_smooth_taubin)
+        self.window.set_on_menu_item_activated(
+            MainWindow.MENU_SIMPLIFICATION_AVERAGE, self._on_menu_simplification_average)
+        self.window.set_on_menu_item_activated(
+            MainWindow.MENU_SIMPLIFICATION_QUADRIC_DECIMATION, self._on_menu_simplification_quadric_decimation)
 
         # 显示“三维模型”部分
         self.display_panel = gui.SceneWidget()
@@ -506,6 +529,10 @@ class MainWindow:
             g = self.geometry_infos.get(id)
             # 从画布和geometry_infos中移除
             self.display_panel.scene.remove_geometry(g.name)
+            if g.line_set:
+                self.display_panel.scene.remove_geometry(g.name+"__line__")
+            if g.point_cloud:
+                self.display_panel.scene.remove_geometry(g.name+"__point__")
             self.geometry_infos.remove(id)
             # 设置geometry_panel中选中的项目
             if len(self.geometry_infos.geometry_infos) > 0:
@@ -967,6 +994,113 @@ class MainWindow:
 
             self._print_message("[Info] Successfully create convex_hull.")
 
+    def _on_menu_transformation(self):
+        dialog = gui.Dialog("transformation")
+        em = self.window.theme.font_size
+        vert = gui.Vert(0, gui.Margins(0.2*em, 0.5*em, 0.2*em, 0.5*em))
+        vert.add_child(gui.Label("First,Translation [XYZ]"))
+        vert.add_child(gui.Label("Then,Rotation [XYZ] Euler angles"))
+        vert.add_child(gui.Label("Finally,scale"))
+
+        self._translation_x = gui.NumberEdit(gui.NumberEdit.DOUBLE)
+        self._translation_x.double_value = 0.0
+        self._translation_y = gui.NumberEdit(gui.NumberEdit.DOUBLE)
+        self._translation_y.double_value = 0.0
+        self._translation_z = gui.NumberEdit(gui.NumberEdit.DOUBLE)
+        self._translation_z.double_value = 0.0
+        self._rotation_x = gui.NumberEdit(gui.NumberEdit.DOUBLE)
+        self._rotation_x.double_value = 0.0
+        self._rotation_y = gui.NumberEdit(gui.NumberEdit.DOUBLE)
+        self._rotation_y.double_value = 0.0
+        self._rotation_z = gui.NumberEdit(gui.NumberEdit.DOUBLE)
+        self._rotation_z.double_value = 0.0
+        self._scale = gui.NumberEdit(gui.NumberEdit.DOUBLE)
+        self._scale.double_value = 1.0
+        horiz_1 = gui.Horiz(0, gui.Margins(0, 0.5*em, 0, 0.5*em))
+        horiz_2 = gui.Horiz(0, gui.Margins(0, 0.5*em, 0, 0.5*em))
+        horiz_3 = gui.Horiz(0, gui.Margins(0, 0.5*em, 0, 0.5*em))
+        horiz_4 = gui.Horiz(0, gui.Margins(0, 0.5*em, 0, 0.5*em))
+        horiz_5 = gui.Horiz(0, gui.Margins(0, 0.5*em, 0, 0.5*em))
+        horiz_6 = gui.Horiz(0, gui.Margins(0, 0.5*em, 0, 0.5*em))
+        horiz_7 = gui.Horiz(0, gui.Margins(0, 0.5*em, 0, 0.5*em))
+        horiz_1.add_child(gui.Label("X Translation: "))
+        horiz_1.add_child(self._translation_x)
+        horiz_2.add_child(gui.Label("T Translation: "))
+        horiz_2.add_child(self._translation_y)
+        horiz_3.add_child(gui.Label("Z Translation: "))
+        horiz_3.add_child(self._translation_z)
+        horiz_4.add_child(gui.Label("X Rotation: "))
+        horiz_4.add_child(self._rotation_x)
+        horiz_5.add_child(gui.Label("Y Rotation: "))
+        horiz_5.add_child(self._rotation_y)
+        horiz_6.add_child(gui.Label("Z Rotation: "))
+        horiz_6.add_child(self._rotation_z)
+        horiz_7.add_child(gui.Label("Scale: "))
+        horiz_7.add_child(self._scale)
+        vert.add_child(horiz_1)
+        vert.add_child(horiz_2)
+        vert.add_child(horiz_3)
+        vert.add_child(horiz_4)
+        vert.add_child(horiz_5)
+        vert.add_child(horiz_6)
+        vert.add_child(horiz_7)
+        
+
+        cancel_button = gui.Button("cancel")
+        cancel_button.set_on_clicked(self._dialog_cancel)
+        apply_button = gui.Button("apply")
+        apply_button.set_on_clicked(self._transformation)
+        button_layout = gui.Horiz()
+        button_layout.add_stretch()
+        button_layout.add_child(cancel_button)
+        button_layout.add_stretch()
+        button_layout.add_child(apply_button)
+        button_layout.add_stretch()
+        vert.add_child(button_layout)
+        dialog.add_child(vert)
+        self.window.show_dialog(dialog)
+
+    def _transformation(self):
+        self._dialog_cancel()
+        id = self.geometry_treeview.selected_item
+        geometry_info = self.geometry_infos.get(id)
+        if geometry_info is None:
+            self._print_message("[ERROR] didn't pick a geometry.")
+        elif geometry_info.geometry is None:
+            self._print_message("[ERROR] there is no geometry.")
+        else:
+            geometry_info.geometry.translate(
+                (self._translation_x.double_value,
+                 self._translation_y.double_value,
+                 self._translation_z.double_value))
+            R = geometry_info.geometry.get_rotation_matrix_from_xyz(
+                ((self._rotation_x.double_value % 360) / 180 * np.pi,
+                 (self._rotation_y.double_value % 360) / 180 * np.pi,
+                 (self._rotation_z.double_value % 360) / 180 * np.pi))
+            geometry_info.geometry.rotate(R, center=(0, 0, 0))
+            geometry_info.geometry.scale(
+                self._scale.double_value,
+                center=geometry_info.geometry.get_center())
+            # 画布中重绘
+            self.display_panel.scene.remove_geometry(geometry_info.name)
+            if geometry_info.line_set:
+                self.display_panel.scene.remove_geometry(geometry_info.name+"__line__")
+                self.display_panel.scene.remove_geometry(geometry_info.name+"__point__")
+            geometry_info.bulid()
+            self.display_panel.scene.add_geometry(
+                geometry_info.name, geometry_info.geometry, self.settings.material)
+            self.display_panel.scene.show_geometry(
+                geometry_info.name, geometry_info.visible)
+            if geometry_info.line_set:
+                self.display_panel.scene.add_geometry(
+                    geometry_info.name+"__line__", geometry_info.line_set, self.settings.material)
+                self.display_panel.scene.show_geometry(
+                    geometry_info.name+"__line__", geometry_info.line_set_visible)
+                self.display_panel.scene.add_geometry(
+                    geometry_info.name+"__point__", geometry_info.point_cloud, self.settings.material)
+                self.display_panel.scene.show_geometry(
+                    geometry_info.name+"__point__", geometry_info.point_cloud_visible)
+
     # 菜单栏 --> remesh 网格模型
     def _on_menu_remesh(self):
         self.show_remesh_dialog("remesh")
@@ -1024,19 +1158,32 @@ class MainWindow:
             self._print_message("[Info] Successfully remesh.")
 
     def _on_menu_subdivision_midpoint(self):
+        info = []
+        info.append("we compute the midpoint of each side per triangle")
+        info.append("and divide the triangle into four smaller triangles.")
+        self.show_subdivision_dialog(
+            info, MainWindow.MENU_SUBDIVISION_MIDPOINT)
+    
+    def _on_menu_subdivision_loop(self):
+        info = []
+        info.append("Function subdivide mesh using Loop’s algorithm.")
+        info.append("Loop, Smooth subdivision surfaces based on triangles, 1987.")
+        self.show_subdivision_dialog(info, MainWindow.MENU_SUBDIVISION_LOOP)
+
+    def show_subdivision_dialog(self, info, type: int):
         dialog = gui.Dialog("subdivision")
         em = self.window.theme.font_size
         vert = gui.Vert(0, gui.Margins(0.2*em, 0.5*em, 0.2*em, 0.5*em))
-        vert.add_child(
-            gui.Label("we compute the midpoint of each side per triangle"))
-        vert.add_child(
-            gui.Label("and divide the triangle into four smaller triangles."))
+        for i in info:
+            vert.add_child(gui.Label(i))
         self._subdivision_iteration = gui.NumberEdit(gui.NumberEdit.INT)
         self._subdivision_iteration.int_value = 1
         horiz = gui.Horiz(0, gui.Margins(0, 0.5*em, 0, 0.5*em))
         horiz.add_child(gui.Label("subdivision iterations:"))
         horiz.add_child(self._subdivision_iteration)
         vert.add_child(horiz)
+
+        self._subdivision_type = type
 
         cancel_button = gui.Button("cancel")
         cancel_button.set_on_clicked(self._dialog_cancel)
@@ -1063,8 +1210,13 @@ class MainWindow:
         elif temp.geometry.get_geometry_type() == o3d.geometry.Geometry.PointCloud:
             self._print_message("[ERROR] do not support point cloud.")
         else:
-            mesh_out = temp.geometry.subdivide_midpoint(
-                number_of_iterations=self._subdivision_iteration.int_value)
+            mesh_out = None
+            if self._subdivision_type == MainWindow.MENU_SUBDIVISION_MIDPOINT:
+                mesh_out = temp.geometry.subdivide_midpoint(
+                    number_of_iterations=self._subdivision_iteration.int_value)
+            elif self._subdivision_type == MainWindow.MENU_SUBDIVISION_LOOP:
+                mesh_out = temp.geometry.subdivide_loop(
+                    number_of_iterations=self._subdivision_iteration.int_value)
             # 移除原来的网格
             self._on_delete()
             # 修改后添加
@@ -1146,6 +1298,122 @@ class MainWindow:
                 name=name, geometry=smoothed_mesh)
 
             self._print_message("[Info] Successfully smoothen.")
+    
+    def _on_menu_simplification_average(self):
+        info = []
+        info.append("simplify mesh using vertex clustering.")
+        info.append("The vertex positions are computed by the averaging.")
+        # self.show_simplification_dialog(
+        #     info, MainWindow.MENU_SIMPLIFICATION_AVERAGE)
+        self.show_functional_dialog(
+            "simplification", info, MainWindow.MENU_SIMPLIFICATION_AVERAGE, self._simplification)
+
+    def _on_menu_simplification_quadric_decimation(self):
+        info = []
+        info.append("simplify mesh using Quadric Error Metric Decimation.")
+        # self.show_simplification_dialog(
+        #     info, MainWindow.MENU_SIMPLIFICATION_QUADRIC_DECIMATION)
+        self.show_functional_dialog(
+            "simplification", info, MainWindow.MENU_SIMPLIFICATION_QUADRIC_DECIMATION, self._simplification)
+
+    def show_simplification_dialog(self, info, type):
+        dialog = gui.Dialog("simplification")
+        em = self.window.theme.font_size
+        vert = gui.Vert(0, gui.Margins(0.2*em, 0.5*em, 0.2*em, 0.5*em))
+        for i in info:
+            vert.add_child(gui.Label(i))
+        
+        if type == MainWindow.MENU_SIMPLIFICATION_AVERAGE:
+            self._simplification_parameter = gui.NumberEdit(
+                gui.NumberEdit.DOUBLE)
+            self._simplification_parameter.double_value = 0.028284
+            horiz = gui.Horiz(0, gui.Margins(0, 0.5*em, 0, 0.5*em))
+            horiz.add_child(gui.Label("voxel size:"))
+            horiz.add_child(self._simplification_parameter)
+            vert.add_child(horiz)
+        elif type == MainWindow.MENU_SIMPLIFICATION_QUADRIC_DECIMATION:
+            self._simplification_parameter = gui.NumberEdit(gui.NumberEdit.INT)
+            horiz = gui.Horiz(0, gui.Margins(0, 0.5*em, 0, 0.5*em))
+            horiz.add_child(gui.Label("target face number:"))
+            horiz.add_child(self._simplification_parameter)
+            vert.add_child(horiz)
+
+        self._simplification_type = type
+
+        cancel_button = gui.Button("cancel")
+        cancel_button.set_on_clicked(self._dialog_cancel)
+        apply_button = gui.Button("apply")
+        apply_button.set_on_clicked(self._simplification)
+        button_layout = gui.Horiz()
+        button_layout.add_stretch()
+        button_layout.add_child(cancel_button)
+        button_layout.add_stretch()
+        button_layout.add_child(apply_button)
+        button_layout.add_stretch()
+        vert.add_child(button_layout)
+        dialog.add_child(vert)
+        self.window.show_dialog(dialog)
+    
+    def _simplification(self):
+        self._dialog_cancel()
+        id = self.geometry_treeview.selected_item
+        temp = self.geometry_infos.get(id)
+        if temp is None:
+            self._print_message("[ERROR] didn't pick a geometry.")
+        elif temp.geometry is None:
+            self._print_message("[ERROR] there is no geometry.")
+        elif temp.geometry.get_geometry_type() == o3d.geometry.Geometry.PointCloud:
+            self._print_message("[ERROR] do not support point cloud.")
+        else:
+            mesh = None
+            if self._simplification_type == MainWindow.MENU_SIMPLIFICATION_AVERAGE:
+                mesh = temp.geometry.simplify_vertex_clustering(
+                    self._simplification_parameter.double_value)
+            elif self._simplification_type == MainWindow.MENU_SIMPLIFICATION_QUADRIC_DECIMATION:
+                mesh = temp.geometry.simplify_quadric_decimation(
+                    self._simplification_parameter.int_value)
+             # 移除原来的网格
+            self._on_delete()
+            # 修改后添加
+            self.add_geometry_widget_and_others(temp.name, mesh)
+    
+    def show_functional_dialog(self, title: str, info, type: int, apply_button_function):
+        dialog = gui.Dialog(title)
+        em = self.window.theme.font_size
+        vert = gui.Vert(0, gui.Margins(0.2*em, 0.5*em, 0.2*em, 0.5*em))
+        for i in info:
+            vert.add_child(gui.Label(i))
+
+        if type == MainWindow.MENU_SIMPLIFICATION_AVERAGE:
+            self._simplification_type = type
+            self._simplification_parameter = gui.NumberEdit(
+                gui.NumberEdit.DOUBLE)
+            self._simplification_parameter.double_value = 0.028284
+            horiz = gui.Horiz(0, gui.Margins(0, 0.5*em, 0, 0.5*em))
+            horiz.add_child(gui.Label("voxel size:"))
+            horiz.add_child(self._simplification_parameter)
+            vert.add_child(horiz)
+        elif type == MainWindow.MENU_SIMPLIFICATION_QUADRIC_DECIMATION:
+            self._simplification_type = type
+            self._simplification_parameter = gui.NumberEdit(gui.NumberEdit.INT)
+            horiz = gui.Horiz(0, gui.Margins(0, 0.5*em, 0, 0.5*em))
+            horiz.add_child(gui.Label("target face number:"))
+            horiz.add_child(self._simplification_parameter)
+            vert.add_child(horiz)
+
+        cancel_button = gui.Button("cancel")
+        cancel_button.set_on_clicked(self._dialog_cancel)
+        apply_button = gui.Button("apply")
+        apply_button.set_on_clicked(apply_button_function)
+        button_layout = gui.Horiz()
+        button_layout.add_stretch()
+        button_layout.add_child(cancel_button)
+        button_layout.add_stretch()
+        button_layout.add_child(apply_button)
+        button_layout.add_stretch()
+        vert.add_child(button_layout)
+        dialog.add_child(vert)
+        self.window.show_dialog(dialog)
 
 
 def main():
