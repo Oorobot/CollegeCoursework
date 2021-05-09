@@ -1,3 +1,4 @@
+import threading
 import time
 from typing import Tuple
 
@@ -7,15 +8,14 @@ import open3d.visualization.gui as gui
 import open3d.visualization.rendering as rendering
 import tensorflow as tf
 import trimesh
-import threading
 
+from ..model.Loss import ChamferLossLayer, ConvergenceDetector
+from ..model.Mesh import Mesh
+from ..model.PointToMeshModel import PointToMeshModel, get_vertex_features
+from ..script.tools import remesh
+from .geometry import GeometryInfo, GeometryInfos
 from .options import Options
 from .settings import Settings
-from .geometry import GeometryInfo, GeometryInfos
-from ..model.Mesh import Mesh
-from ..script.tools import remesh
-from ..model.Loss import ChamferLossLayer, ConvergenceDetector
-from ..model.PointToMeshModel import PointToMeshModel, get_vertex_features
 
 
 class MainWindow:
@@ -27,7 +27,7 @@ class MainWindow:
     MENU_CONVEX_HULL = 4
     MENU_REMESH = 5
 
-    MENU_CLOSE_ALL = 6
+    MENU_SHOW_NONE = 6
     MENU_SHOW_TRAIN = 7
     MENU_SHOW_GEOMETRY = 8
 
@@ -79,19 +79,19 @@ class MainWindow:
             operation_menu.add_item(
                 "Create convex hull", MainWindow.MENU_CONVEX_HULL)
             operation_menu.add_item(
-                "translate/rotation/scale", MainWindow.MENU_TRANSFORMATION)
+                "Translate/Rotation/Scale", MainWindow.MENU_TRANSFORMATION)
             mesh_menu = gui.Menu()
             mesh_menu.add_item(
-                "midpoint subdivision", MainWindow.MENU_SUBDIVISION_MIDPOINT)
+                "Subdivision: Midpoint", MainWindow.MENU_SUBDIVISION_MIDPOINT)
             # mesh_menu.add_item(
-            #     "loop subdivision", MainWindow.MENU_SUBDIVISION_LOOP)
+            #     "Subdivision: Loop", MainWindow.MENU_SUBDIVISION_LOOP)
             mesh_menu.add_separator()
             mesh_menu.add_item(
-                "humphrey smooth", MainWindow.MENU_SMOOTH_HUMPHREY)
+                "Smoothing: Humphrey", MainWindow.MENU_SMOOTH_HUMPHREY)
             mesh_menu.add_item(
-                "laplacian smooth", MainWindow.MENU_SMOOTH_LAPLACIAN)
+                "Smoothing: Laplacian", MainWindow.MENU_SMOOTH_LAPLACIAN)
             mesh_menu.add_item(
-                "taubin smooth", MainWindow.MENU_SMOOTH_TAUBIN)
+                "Smoothing: Taubin", MainWindow.MENU_SMOOTH_TAUBIN)
             mesh_menu.add_separator()
             mesh_menu.add_item(
                 "Remesh:Manifold and Simplify", MainWindow.MENU_REMESH)
@@ -105,7 +105,7 @@ class MainWindow:
             menubar.add_menu("Operations", operation_menu)
 
             view_menu = gui.Menu()
-            view_menu.add_item("Close All Windows", MainWindow.MENU_CLOSE_ALL)
+            view_menu.add_item("Close All Windows", MainWindow.MENU_SHOW_NONE)
             view_menu.add_separator()
             view_menu.add_item("Show train panel", MainWindow.MENU_SHOW_TRAIN)
             view_menu.set_checked(MainWindow.MENU_SHOW_TRAIN, True)
@@ -132,7 +132,7 @@ class MainWindow:
         self.window.set_on_menu_item_activated(
             MainWindow.MENU_ABOUT, self._on_menu_about)
         self.window.set_on_menu_item_activated(
-            MainWindow.MENU_CLOSE_ALL, self._on_menu_close_all)
+            MainWindow.MENU_SHOW_NONE, self._on_menu_show_none)
         self.window.set_on_menu_item_activated(
             MainWindow.MENU_SHOW_TRAIN, self._on_menu_show_train)
         self.window.set_on_menu_item_activated(
@@ -416,131 +416,16 @@ class MainWindow:
             r.width, self.info_panel.calc_preferred_size(theme).height
         )
 
-    def _on_tree(self, id):
-        g_info = self.geometry_infos.get(id)
-        if g_info.visible:
-            self.show_hide_button.text = "hide"
-        else:
-            self.show_hide_button.text = "show"
-        if g_info.line_set_visible:
-            self.line_button.text = "line:hide"
-        else:
-            self.line_button.text = "line:show"
-        if g_info.point_cloud_visible:
-            self.point_button.text = "point:hide"
-        else:
-            self.point_button.text = "point:show"
+    """
+    菜单栏功能函数
+    """
 
-    def _on_line(self):
-        id = self.geometry_treeview.selected_item
-        g_info = self.geometry_infos.get(id)
-        if g_info:
-            g_info.line_set_visible = not g_info.line_set_visible
-            if g_info.line_set and g_info.visible:
-                self.display_panel.scene.show_geometry(
-                    g_info.name+"__line__", g_info.line_set_visible)
-            if g_info.line_set_visible:
-                self.line_button.text = "line:hide"
-            else:
-                self.line_button.text = "line:show"
-        else:
-            self._print_message("[WARNING] please choose a geometry.")
+    # 关于
+    def _on_menu_about(self):
+        self.window.show_message_box(
+            "About", "Welcome to Point2Mesh Model Visualization!!!")
 
-    def _on_point(self):
-        id = self.geometry_treeview.selected_item
-        g_info = self.geometry_infos.get(id)
-        if g_info:
-            g_info.point_cloud_visible = not g_info.point_cloud_visible
-            if g_info.point_cloud and g_info.visible:
-                self.display_panel.scene.show_geometry(
-                    g_info.name+"__point__", g_info.point_cloud_visible)
-            if g_info.point_cloud_visible:
-                self.point_button.text = "point:hide"
-            else:
-                self.point_button.text = "point:show"
-        else:
-            self._print_message("[WARNING] please choose a geometry.")
-
-    def add_geometry_widget_and_others(self, name: str, geometry):
-        temp = GeometryInfo(name=name, geometry=geometry)
-        self.geometry_infos.push_back(temp)
-        self.add_geometry_widget()
-        self.display_panel.scene.add_geometry(
-            temp.name, temp.geometry, self.settings.material)
-        if temp.line_set:
-            self.display_panel.scene.add_geometry(
-                temp.name+"__line__", temp.line_set, self.settings.material)
-            self.display_panel.scene.show_geometry(
-                temp.name+"__line__", temp.line_set_visible)
-        if temp.point_cloud:
-            self.display_panel.scene.add_geometry(
-                temp.name+"__point__", temp.point_cloud, self.settings.material)
-            self.display_panel.scene.show_geometry(
-                temp.name+"__point__", temp.point_cloud_visible)
-
-    def add_geometry_widget(self):
-        # 添加geometry部件
-        id = self.geometry_treeview.add_item(
-            self.geometry_treeview.get_root_item(), self.geometry_widget(self.geometry_infos.geometry_infos[-1]))
-        self.geometry_infos.geometry_infos[-1].set_id(id)
-        self.geometry_treeview.selected_item = id
-
-    def geometry_widget(self, geometry_info: GeometryInfo):
-        widget = gui.CollapsableVert(
-            geometry_info.name, 0, gui.Margins(0, 0, 0, 0))
-        widget.set_is_open(False)
-        widget.add_child(gui.Label("File:"+geometry_info.file))
-        widget.add_child(
-            gui.Label("vertices:"+str(geometry_info.num_vertices)))
-        widget.add_child(gui.Label("faces:"+str(geometry_info.num_faces)))
-        return widget
-
-    def _on_show_hide(self):
-        id = self.geometry_treeview.selected_item
-        g_info = self.geometry_infos.get(id)
-        if g_info:
-            g_info.visible = not g_info.visible
-            self.display_panel.scene.show_geometry(g_info.name, g_info.visible)
-            if g_info.visible:
-                self.show_hide_button.text = "hide"
-                if g_info.line_set:
-                    self.display_panel.scene.show_geometry(
-                        g_info.name+"__line__", g_info.line_set_visible)
-                if g_info.point_cloud:
-                    self.display_panel.scene.show_geometry(
-                        g_info.name+"__point__", g_info.point_cloud_visible)
-            else:
-                self.show_hide_button.text = "show"
-                if g_info.line_set:
-                    self.display_panel.scene.show_geometry(
-                        g_info.name+"__line__", False)
-                if g_info.point_cloud:
-                    self.display_panel.scene.show_geometry(
-                        g_info.name+"__point__", False)
-        else:
-            self._print_message("[WARNING] please choose a geometry.")
-
-    def _on_delete(self):
-        if len(self.geometry_infos.geometry_infos) != 0:
-            id = self.geometry_treeview.selected_item
-            self.geometry_treeview.selected_item = 0
-            # 移除geometry部件
-            self.geometry_treeview.remove_item(id)
-            g = self.geometry_infos.get(id)
-            # 从画布和geometry_infos中移除
-            self.display_panel.scene.remove_geometry(g.name)
-            if g.line_set:
-                self.display_panel.scene.remove_geometry(g.name+"__line__")
-            if g.point_cloud:
-                self.display_panel.scene.remove_geometry(g.name+"__point__")
-            self.geometry_infos.remove(id)
-            # 设置geometry_panel中选中的项目
-            if len(self.geometry_infos.geometry_infos) > 0:
-                self.geometry_treeview.selected_item = self.geometry_infos.geometry_infos[0].id
-            else:
-                self.geometry_treeview.selected_item = 0
-
-    # 菜单栏 --> 载入文件
+    # 载入文件
     def _on_menu_file(self):
         file_dialog = gui.FileDialog(
             gui.FileDialog.OPEN, "Choose File to open:", self.window.theme
@@ -572,19 +457,7 @@ class MainWindow:
         file_dialog.set_on_done(self._file_dialog_done)
         self.window.show_dialog(file_dialog)
 
-    def _dialog_cancel(self):
-        self.window.close_dialog()
-
-    def _file_dialog_done(self, path):
-        self.window.close_dialog()
-        self.load(path)
-
-    # 菜单栏 --> 关于
-    def _on_menu_about(self):
-        self.window.show_message_box(
-            "About", "Welcome to Point2Mesh Model Visualization!!!")
-
-    # 菜单栏 --> 保存文件
+    # 保存文件
     def _on_menu_export_file(self):
         file_dialog = gui.FileDialog(
             gui.FileDialog.SAVE, "Choose File to open:", self.window.theme
@@ -607,130 +480,16 @@ class MainWindow:
         file_dialog.set_on_done(self._export_file_dialog_done)
         self.window.show_dialog(file_dialog)
 
-    def _export_file_dialog_done(self, path):
+    def _dialog_cancel(self):
         self.window.close_dialog()
-        self.write(path)
 
-    # 菜单栏 --> 关闭子窗口
-    def _on_menu_close_all(self):
-        gui.Application.instance.menubar.set_checked(
-            MainWindow.MENU_SHOW_TRAIN, False)
-        gui.Application.instance.menubar.set_checked(
-            MainWindow.MENU_SHOW_GEOMETRY, False)
-        self.window.set_needs_layout()
-
-    # 菜单栏 --> 显示训练面板
-    def _on_menu_show_train(self):
-        gui.Application.instance.menubar.set_checked(
-            MainWindow.MENU_SHOW_TRAIN,
-            not gui.Application.instance.menubar.is_checked(
-                MainWindow.MENU_SHOW_TRAIN)
-        )
-        self.window.set_needs_layout()
-
-    def _on_menu_show_geometry(self):
-        gui.Application.instance.menubar.set_checked(
-            MainWindow.MENU_SHOW_GEOMETRY,
-            not gui.Application.instance.menubar.is_checked(
-                MainWindow.MENU_SHOW_GEOMETRY)
-        )
-        self.window.set_needs_layout()
-
-    # 训练面板 --> 添加点云文件按钮
-    def _on_point_cloud_button(self):
-        point_cloud_dialog = gui.FileDialog(
-            gui.FileDialog.OPEN, "Select point cloud file:", self.window.theme)
-        point_cloud_dialog.add_filter(
-            ".txt .pwn", "fitted point cloud files(.txt .pwn)")
-        point_cloud_dialog.add_filter(
-            ".xyz .xyzn .xyzrgb .ply .pcd .pts",
-            "Point cloud files (.xyz, .xyzn, .xyzrgb, .ply, "
-            ".pcd, .pts)")
-        point_cloud_dialog.set_on_cancel(self._dialog_cancel)
-        point_cloud_dialog.set_on_done(self._on_p_c_d_done)
-        self.window.show_dialog(point_cloud_dialog)
-
-    def _on_p_c_d_done(self, path):
-        self._point_cloud.text_value = path
-        path_list = path.split("/")
-        path_list[-1] = "results"
-        self._result_folder.text_value = "/".join(path_list)
-
+    def _file_dialog_done(self, path):
         self.window.close_dialog()
-        path = path + "__train__"
         self.load(path)
 
-    # 训练面板 --> 有无初始网格
-    def _on_initial_mesh_status(self, is_checked):
-        if is_checked:
-            self.initial_mesh_layout.visible = True
-        else:
-            self.initial_mesh_layout.visible = False
-
-    # 训练面板 --> 添加初始网格按钮
-    def _on_initial_mesh_button(self):
-        initial_mesh_dialog = gui.FileDialog(
-            gui.FileDialog.OPEN, "Select initial mesh file:", self.window.theme)
-        initial_mesh_dialog.add_filter(".obj", "Wavefront OBJ files (.obj)")
-        initial_mesh_dialog.set_on_cancel(self._dialog_cancel)
-        initial_mesh_dialog.set_on_done(self._i_m_d_done)
-        self.window.show_dialog(initial_mesh_dialog)
-
-    def _i_m_d_done(self, path):
+    def _export_file_dialog_done(self, path):
         self.window.close_dialog()
-        self._initial_mesh.text_value = path
-
-    # 训练面板 --> 训练按钮
-    def _on_train(self):
-
-        # 给options赋值
-        self.options.init(
-            num_subdivisions=self._num_epoch.int_value,
-            num_iterations=self._num_iterations.int_value,
-            subdivision_multiplier=self._epoch_multiplier.double_value,
-            initial_num_faces=self._initial_faces_num.int_value,
-            max_num_faces=self._max_faces_num.int_value,
-            obj_save_modulo=self._save_obj.int_value,
-            min_num_samples=self._min_samples_num.int_value,
-            max_num_samples=self._max_samples_num.int_value
-        )
-        if len(self._point_cloud.text_value) != 0:
-            self.options.point_cloud = self._point_cloud.text_value
-            self.options.save_location = self._result_folder.text_value
-        if self.initial_mesh_status.checked and len(self._initial_mesh.text_value) != 0:
-            self.options.initial_mesh = self._initial_mesh.text_value
-        else:
-            self.options.initial_mesh = None
-        print(self.options)
-
-        # 校验 options 参数
-        warnings = self.options.validate()
-        if len(warnings) == 0:
-            # 关闭部分部件的功能
-            self.train_status = True
-            self.stop_button.visible = True
-            self.train_button.enabled = False
-            self.point_cloud_button.enabled = False
-            self.initial_mesh_button.enabled = False
-            self.line_button.enabled = False
-            self.point_button.enabled = False
-            self.show_hide_button.enabled = False
-            self.delete_button.enabled = False
-            # 清除画布，仅显示训练的模型变化
-            self.display_panel.scene.clear_geometry()
-            threading.Thread(target=self.train_model).start()
-        else:
-            self.show_message_box("WARNING", warnings)
-
-    # 训练面板 --> 暂停按钮
-    def _on_stop(self):
-        if self.train_status:
-            self.stop_button.text = "Continue"
-            self.train_status = False
-        else:
-            self.stop_button.text = "Stop"
-            self.train_status = True
-            self._print_message("[Info] recovery the training.")
+        self.save(path)
 
     def load(self, path: str):
         pc = False
@@ -762,12 +521,11 @@ class MainWindow:
                     temp.name+"__point__", temp.point_cloud, self.settings.material)
                 self.display_panel.scene.show_geometry(
                     temp.name+"__point__", temp.point_cloud_visible)
-
             self._print_message("[Info] Successfully read " + path)
         else:
             self._print_message("[ERROR] Failure to read " + path)
 
-    def write(self, path: str):
+    def save(self, path: str):
         if len(self.geometry_infos.geometry_infos) != 0:
             id = self.geometry_treeview.selected_item
             temp = self.geometry_infos.get(id)
@@ -778,207 +536,33 @@ class MainWindow:
         else:
             self._print_message("[WARNING] please choose a geometry.")
 
-    def train_model(self):
+    # 关闭子窗口
+    def _on_menu_show_none(self):
+        gui.Application.instance.menubar.set_checked(
+            MainWindow.MENU_SHOW_TRAIN, False)
+        gui.Application.instance.menubar.set_checked(
+            MainWindow.MENU_SHOW_GEOMETRY, False)
+        self.window.set_needs_layout()
 
-        point_cloud = self.cloud
-        point_cloud_tf = tf.convert_to_tensor(point_cloud, dtype=tf.float32)
+    # 显示训练面板
+    def _on_menu_show_train(self):
+        gui.Application.instance.menubar.set_checked(
+            MainWindow.MENU_SHOW_TRAIN,
+            not gui.Application.instance.menubar.is_checked(
+                MainWindow.MENU_SHOW_TRAIN)
+        )
+        self.window.set_needs_layout()
 
-        def load(path) -> Tuple[np.ndarray, np.ndarray]:
-            temp = GeometryInfo.read(path)
-            vertices, faces = GeometryInfo.o3d_to_numpy(temp.geometry)
-            return np.float32(vertices), faces
+    # 显示模型面板
+    def _on_menu_show_geometry(self):
+        gui.Application.instance.menubar.set_checked(
+            MainWindow.MENU_SHOW_GEOMETRY,
+            not gui.Application.instance.menubar.is_checked(
+                MainWindow.MENU_SHOW_GEOMETRY)
+        )
+        self.window.set_needs_layout()
 
-        def save(path, vertices, faces):
-            geometry = GeometryInfo.numpy_to_o3d(vertices, faces)
-            GeometryInfo.write(geometry, path)
-
-        def print_message(message: str):
-            self.message = message
-            print(message)
-            gui.Application.instance.post_to_main_thread(
-                self.window, self._print_message_on_child_thread)
-
-        # 初始网格
-        if self.options.initial_mesh:
-            remeshed_vertices, remeshed_faces = load(self.options.initial_mesh)
-        else:
-            convex_hull = trimesh.convex.convex_hull(point_cloud)
-            remeshed_vertices, remeshed_faces = remesh(
-                convex_hull.vertices, convex_hull.faces, self.options.initial_num_faces
-            )
-        save("tmp_initial_mesh.obj", remeshed_vertices, remeshed_faces)
-
-        # 画布显示初始网格模型
-        self.mesh_in_train = GeometryInfo.numpy_to_o3d(
-            remeshed_vertices, remeshed_faces)
-        gui.Application.instance.post_to_main_thread(
-            self.window, self._change_scene_on_child_thread)
-
-        # 模型
-        chamfer_loss = ChamferLossLayer()
-        optimizer = tf.keras.optimizers.Adam(learning_rate=0.00005)
-        num_subdivisions = self.options.num_subdivisions
-        new_vertices = None
-
-        for subdivision_level in range(num_subdivisions):
-            chamfer_convergence = ConvergenceDetector()
-
-            if subdivision_level != 0:
-                if new_vertices is None:
-                    raise Exception("Could not find vertices to subdivide.")
-                else:
-                    new_face_num = min(
-                        self.options.max_num_faces, self.options.subdivision_multiplier *
-                        remeshed_faces.shape[0]
-                    )
-
-                print_message(f"Remeshing to {int(new_face_num)} faces")
-
-                remeshed_vertices, remeshed_faces = remesh(
-                    new_vertices.numpy(), remeshed_faces, new_face_num
-                )
-            else:
-                print_message(f"Starting with {remeshed_faces.shape[0]} faces")
-
-            mesh = Mesh(remeshed_vertices, remeshed_faces)
-            model = PointToMeshModel(
-                mesh.edges.shape[0], self.options.pooling)
-
-            # 随机特征值
-            in_features = tf.random.uniform(
-                (mesh.edges.shape[0], 6), -0.5, 0.5)
-
-            old_vertices = tf.convert_to_tensor(
-                remeshed_vertices, dtype=tf.float32)
-            num_iterations = self.options.num_iterations
-            for iteration in range(num_iterations):
-                iteration_start_time = time.time()
-                with tf.GradientTape() as tape:
-                    # 获取新的点位置
-                    features = model(mesh, in_features)
-                    new_vertices = old_vertices + \
-                        get_vertex_features(mesh, features)
-                    # 计算loss值
-                    samples_num = int(
-                        self.options.min_num_samples
-                        + (iteration / self.options.num_iterations)
-                        * (self.options.max_num_samples - self.options.min_num_samples)
-                    )
-                    surface_sample = mesh.sample_surface(
-                        new_vertices, samples_num
-                    )
-                    loss = chamfer_loss(
-                        surface_sample[0], point_cloud_tf, samples_num
-                    )
-                    converged = chamfer_convergence.step(loss.numpy().item())
-
-                gradients = tape.gradient(loss, model.trainable_variables)
-                optimizer.apply_gradients(
-                    zip(gradients, model.trainable_variables))
-
-                # 保存模型
-                save_obj = self.options.obj_save_modulo
-                if iteration % save_obj == 0 or converged or iteration == num_iterations - 1:
-                    save(
-                        f"tmp_{str(subdivision_level).zfill(2)}_{str(iteration).zfill(3)}.obj",
-                        new_vertices.numpy(),
-                        remeshed_faces,
-                    )
-
-                message = [
-                    f"{subdivision_level+1}/{num_subdivisions} & {iteration+1}/{num_iterations}",
-                    f"Chamfer Loss:{loss.numpy().item()}",
-                    f"Time:{time.time()-iteration_start_time}"
-                ]
-                if self.train_status:
-                    print_message(" ".join(message))
-                else:
-                    print_message(" ".join(message) +
-                                  " [Info] already stop the training")
-
-                # 画布替换
-                self.mesh_in_train = GeometryInfo.numpy_to_o3d(
-                    new_vertices.numpy(), remeshed_faces)
-                gui.Application.instance.post_to_main_thread(
-                    self.window, self._change_scene_on_child_thread)
-
-                # 暂停训练
-                while not self.train_status:
-                    time.sleep(1)
-
-                if converged:
-                    print_message(
-                        f"Converged at iteration {iteration + 1}/{num_iterations}.")
-                    break
-
-        print_message("Done")
-        gui.Application.instance.post_to_main_thread(
-            self.window, self._reset_after_train)
-
-    def _change_scene_on_child_thread(self):
-        self.display_panel.scene.clear_geometry()
-        self.display_panel.scene.add_geometry(
-            "__result__", self.mesh_in_train, self.settings.material)
-
-    def _reset_after_train(self):
-        # 恢复部分部件功能
-        self.train_status = False
-        self.train_button.enabled = True
-        self.stop_button.visible = False
-        self.point_cloud_button.enabled = True
-        self.initial_mesh_button.enabled = True
-        self.line_button.enabled = True
-        self.point_button.enabled = True
-        self.show_hide_button.enabled = True
-        self.delete_button.enabled = True
-        # 重新绘画已有的模型，并不展示出来
-        self.display_panel.scene.clear_geometry()
-        for g_info in self.geometry_infos.geometry_infos:
-            g_info.visible = False
-            self.display_panel.scene.add_geometry(
-                g_info.name, g_info.geometry, self.settings.material)
-            self.display_panel.scene.show_geometry(g_info.name, False)
-            if g_info.line_set:
-                g_info.line_set_visible = False
-                self.display_panel.scene.add_geometry(
-                    g_info.name+"__line__", g_info.line_set, self.settings.material)
-                self.display_panel.scene.show_geometry(
-                    g_info.name+"__line__", False)
-            if g_info.point_cloud:
-                g_info.point_cloud_visible = False
-                self.display_panel.scene.add_geometry(
-                    g_info.name+"__point__", g_info.point_cloud, self.settings.material)
-                self.display_panel.scene.show_geometry(
-                    g_info.name+"__point__", False)
-        # 添加训练结果模型，并展示出来
-        self.add_geometry_widget_and_others(
-            name="__result__", geometry=self.mesh_in_train)
-
-    # 消息面板
-    def _print_message_on_child_thread(self):
-        self.message_label.text = self.message
-
-    def _print_message(self, message: str):
-        self.message_label.text = message
-
-    def show_message_box(self, title: str, message: list):
-        message_box = gui.Dialog(title)
-        em = self.window.theme.font_size
-        message_box_layout = gui.Vert(0, gui.Margins(em, 0.5*em, em, 0.5*em))
-        for m in message:
-            message_box_layout.add_child(gui.Label(m))
-        ok_button = gui.Button("OK")
-        ok_button.set_on_clicked(self._dialog_cancel)
-        button_layout = gui.Horiz()
-        button_layout.add_stretch()
-        button_layout.add_child(ok_button)
-
-        message_box_layout.add_child(button_layout)
-
-        message_box.add_child(message_box_layout)
-        self.window.show_dialog(message_box)
-
-    # 菜单栏 --> 创建凸包
+    # 创建凸包
     def _on_menu_convex_hull(self):
         id = self.geometry_treeview.selected_item
         geometry_info = self.geometry_infos.get(id)
@@ -1102,12 +686,11 @@ class MainWindow:
                 self.display_panel.scene.show_geometry(
                     geometry_info.name+"__point__", geometry_info.point_cloud_visible)
 
-    # 菜单栏 --> remesh 网格模型
+    # remesh 网格模型
     def _on_menu_remesh(self):
         info = []
         info.append("take a triangle mesh and generate a manifold mesh.")
         info.append("Then,for efficiency purpose,simplify the mesh.")
-        self.show_remesh_dialog("remesh")
         self.show_functional_dialog(
             "remesh", info, MainWindow.MENU_REMESH, self._remesh)
 
@@ -1323,6 +906,437 @@ class MainWindow:
         vert.add_child(button_layout)
         dialog.add_child(vert)
         self.window.show_dialog(dialog)
+
+    """
+    模型面板功能函数
+    """
+
+    def _on_tree(self, id):
+        g_info = self.geometry_infos.get(id)
+        if g_info.visible:
+            self.show_hide_button.text = "hide"
+        else:
+            self.show_hide_button.text = "show"
+        if g_info.line_set_visible:
+            self.line_button.text = "line:hide"
+        else:
+            self.line_button.text = "line:show"
+        if g_info.point_cloud_visible:
+            self.point_button.text = "point:hide"
+        else:
+            self.point_button.text = "point:show"
+
+    def _on_line(self):
+        id = self.geometry_treeview.selected_item
+        g_info = self.geometry_infos.get(id)
+        if g_info:
+            g_info.line_set_visible = not g_info.line_set_visible
+            if g_info.line_set and g_info.visible:
+                self.display_panel.scene.show_geometry(
+                    g_info.name+"__line__", g_info.line_set_visible)
+            if g_info.line_set_visible:
+                self.line_button.text = "line:hide"
+            else:
+                self.line_button.text = "line:show"
+        else:
+            self._print_message("[WARNING] please choose a geometry.")
+
+    def _on_point(self):
+        id = self.geometry_treeview.selected_item
+        g_info = self.geometry_infos.get(id)
+        if g_info:
+            g_info.point_cloud_visible = not g_info.point_cloud_visible
+            if g_info.point_cloud and g_info.visible:
+                self.display_panel.scene.show_geometry(
+                    g_info.name+"__point__", g_info.point_cloud_visible)
+            if g_info.point_cloud_visible:
+                self.point_button.text = "point:hide"
+            else:
+                self.point_button.text = "point:show"
+        else:
+            self._print_message("[WARNING] please choose a geometry.")
+
+    def add_geometry_widget_and_others(self, name: str, geometry):
+        temp = GeometryInfo(name=name, geometry=geometry)
+        self.geometry_infos.push_back(temp)
+        self.add_geometry_widget()
+        self.display_panel.scene.add_geometry(
+            temp.name, temp.geometry, self.settings.material)
+        if temp.line_set:
+            self.display_panel.scene.add_geometry(
+                temp.name+"__line__", temp.line_set, self.settings.material)
+            self.display_panel.scene.show_geometry(
+                temp.name+"__line__", temp.line_set_visible)
+        if temp.point_cloud:
+            self.display_panel.scene.add_geometry(
+                temp.name+"__point__", temp.point_cloud, self.settings.material)
+            self.display_panel.scene.show_geometry(
+                temp.name+"__point__", temp.point_cloud_visible)
+
+    def add_geometry_widget(self):
+        # 添加geometry部件
+        id = self.geometry_treeview.add_item(
+            self.geometry_treeview.get_root_item(), self.geometry_widget(self.geometry_infos.geometry_infos[-1]))
+        self.geometry_infos.geometry_infos[-1].set_id(id)
+        self.geometry_treeview.selected_item = id
+
+    def geometry_widget(self, geometry_info: GeometryInfo):
+        widget = gui.CollapsableVert(
+            geometry_info.name, 0, gui.Margins(0, 0, 0, 0))
+        widget.set_is_open(False)
+        widget.add_child(gui.Label("File:"+geometry_info.file))
+        widget.add_child(
+            gui.Label("vertices:"+str(geometry_info.num_vertices)))
+        widget.add_child(gui.Label("faces:"+str(geometry_info.num_faces)))
+        return widget
+
+    def _on_show_hide(self):
+        id = self.geometry_treeview.selected_item
+        g_info = self.geometry_infos.get(id)
+        if g_info:
+            g_info.visible = not g_info.visible
+            self.display_panel.scene.show_geometry(g_info.name, g_info.visible)
+            if g_info.visible:
+                self.show_hide_button.text = "hide"
+                if g_info.line_set:
+                    self.display_panel.scene.show_geometry(
+                        g_info.name+"__line__", g_info.line_set_visible)
+                if g_info.point_cloud:
+                    self.display_panel.scene.show_geometry(
+                        g_info.name+"__point__", g_info.point_cloud_visible)
+            else:
+                self.show_hide_button.text = "show"
+                if g_info.line_set:
+                    self.display_panel.scene.show_geometry(
+                        g_info.name+"__line__", False)
+                if g_info.point_cloud:
+                    self.display_panel.scene.show_geometry(
+                        g_info.name+"__point__", False)
+        else:
+            self._print_message("[WARNING] please choose a geometry.")
+
+    def _on_delete(self):
+        if len(self.geometry_infos.geometry_infos) != 0:
+            id = self.geometry_treeview.selected_item
+            self.geometry_treeview.selected_item = 0
+            # 移除geometry部件
+            self.geometry_treeview.remove_item(id)
+            g = self.geometry_infos.get(id)
+            # 从画布和geometry_infos中移除
+            self.display_panel.scene.remove_geometry(g.name)
+            if g.line_set:
+                self.display_panel.scene.remove_geometry(g.name+"__line__")
+            if g.point_cloud:
+                self.display_panel.scene.remove_geometry(g.name+"__point__")
+            self.geometry_infos.remove(id)
+            # 设置geometry_panel中选中的项目
+            if len(self.geometry_infos.geometry_infos) > 0:
+                self.geometry_treeview.selected_item = self.geometry_infos.geometry_infos[0].id
+            else:
+                self.geometry_treeview.selected_item = 0
+
+    """
+    训练面板功能函数
+    """
+
+    # 训练面板 --> 添加点云文件按钮
+    def _on_point_cloud_button(self):
+        point_cloud_dialog = gui.FileDialog(
+            gui.FileDialog.OPEN, "Select point cloud file:", self.window.theme)
+        point_cloud_dialog.add_filter(
+            ".txt .pwn", "fitted point cloud files(.txt .pwn)")
+        point_cloud_dialog.add_filter(
+            ".xyz .xyzn .xyzrgb .ply .pcd .pts",
+            "Point cloud files (.xyz, .xyzn, .xyzrgb, .ply, "
+            ".pcd, .pts)")
+        point_cloud_dialog.set_on_cancel(self._dialog_cancel)
+        point_cloud_dialog.set_on_done(self._on_p_c_d_done)
+        self.window.show_dialog(point_cloud_dialog)
+
+    def _on_p_c_d_done(self, path):
+        self._point_cloud.text_value = path
+        path_list = path.split("/")
+        path_list[-1] = "results"
+        self._result_folder.text_value = "/".join(path_list)
+
+        self.window.close_dialog()
+        path = path + "__train__"
+        self.load(path)
+
+    # 训练面板 --> 有无初始网格
+    def _on_initial_mesh_status(self, is_checked):
+        if is_checked:
+            self.initial_mesh_layout.visible = True
+        else:
+            self.initial_mesh_layout.visible = False
+
+    # 训练面板 --> 添加初始网格按钮
+    def _on_initial_mesh_button(self):
+        initial_mesh_dialog = gui.FileDialog(
+            gui.FileDialog.OPEN, "Select initial mesh file:", self.window.theme)
+        initial_mesh_dialog.add_filter(".obj", "Wavefront OBJ files (.obj)")
+        initial_mesh_dialog.set_on_cancel(self._dialog_cancel)
+        initial_mesh_dialog.set_on_done(self._i_m_d_done)
+        self.window.show_dialog(initial_mesh_dialog)
+
+    def _i_m_d_done(self, path):
+        self.window.close_dialog()
+        self._initial_mesh.text_value = path
+
+    # 训练面板 --> 训练按钮
+    def _on_train(self):
+
+        # 给options赋值
+        self.options.init(
+            num_subdivisions=self._num_epoch.int_value,
+            num_iterations=self._num_iterations.int_value,
+            subdivision_multiplier=self._epoch_multiplier.double_value,
+            initial_num_faces=self._initial_faces_num.int_value,
+            max_num_faces=self._max_faces_num.int_value,
+            obj_save_modulo=self._save_obj.int_value,
+            min_num_samples=self._min_samples_num.int_value,
+            max_num_samples=self._max_samples_num.int_value
+        )
+        if len(self._point_cloud.text_value) != 0:
+            self.options.point_cloud = self._point_cloud.text_value
+            self.options.save_location = self._result_folder.text_value
+        if self.initial_mesh_status.checked and len(self._initial_mesh.text_value) != 0:
+            self.options.initial_mesh = self._initial_mesh.text_value
+        else:
+            self.options.initial_mesh = None
+        print(self.options)
+
+        # 校验 options 参数
+        warnings = self.options.validate()
+        if len(warnings) == 0:
+            # 关闭部分部件的功能
+            self.train_status = True
+            self.stop_button.visible = True
+            self.train_button.enabled = False
+            self.point_cloud_button.enabled = False
+            self.initial_mesh_button.enabled = False
+            self.line_button.enabled = False
+            self.point_button.enabled = False
+            self.show_hide_button.enabled = False
+            self.delete_button.enabled = False
+            # 清除画布，仅显示训练的模型变化
+            self.display_panel.scene.clear_geometry()
+            threading.Thread(target=self.train_model).start()
+        else:
+            self.show_message_box("WARNING", warnings)
+
+    # 训练面板 --> 暂停按钮
+    def _on_stop(self):
+        if self.train_status:
+            self.stop_button.text = "Continue"
+            self.train_status = False
+        else:
+            self.stop_button.text = "Stop"
+            self.train_status = True
+            self._print_message("[Info] recovery the training.")
+
+    def train_model(self):
+
+        point_cloud = self.cloud
+        point_cloud_tf = tf.convert_to_tensor(point_cloud, dtype=tf.float32)
+
+        def load(path) -> Tuple[np.ndarray, np.ndarray]:
+            temp = GeometryInfo.read(path)
+            vertices, faces = GeometryInfo.o3d_to_numpy(temp.geometry)
+            return np.float32(vertices), faces
+
+        def save(path, vertices, faces):
+            geometry = GeometryInfo.numpy_to_o3d(vertices, faces)
+            GeometryInfo.write(geometry, path)
+
+        def print_message(message: str):
+            self.message = message
+            print(message)
+            gui.Application.instance.post_to_main_thread(
+                self.window, self._print_message_on_child_thread)
+
+        # 初始网格
+        if self.options.initial_mesh:
+            remeshed_vertices, remeshed_faces = load(self.options.initial_mesh)
+        else:
+            convex_hull = trimesh.convex.convex_hull(point_cloud)
+            remeshed_vertices, remeshed_faces = remesh(
+                convex_hull.vertices, convex_hull.faces, self.options.initial_num_faces
+            )
+        save("tmp_initial_mesh.obj", remeshed_vertices, remeshed_faces)
+
+        # 画布显示初始网格模型
+        self.mesh_in_train = GeometryInfo.numpy_to_o3d(
+            remeshed_vertices, remeshed_faces)
+        gui.Application.instance.post_to_main_thread(
+            self.window, self._change_scene_on_child_thread)
+
+        # 模型
+        chamfer_loss = ChamferLossLayer()
+        optimizer = tf.keras.optimizers.Adam(learning_rate=0.00005)
+        num_subdivisions = self.options.num_subdivisions
+        new_vertices = None
+
+        for subdivision_level in range(num_subdivisions):
+            chamfer_convergence = ConvergenceDetector()
+
+            if subdivision_level != 0:
+                if new_vertices is None:
+                    raise Exception("Could not find vertices to subdivide.")
+                else:
+                    new_face_num = min(
+                        self.options.max_num_faces, self.options.subdivision_multiplier *
+                        remeshed_faces.shape[0]
+                    )
+
+                print_message(f"Remeshing to {int(new_face_num)} faces")
+
+                remeshed_vertices, remeshed_faces = remesh(
+                    new_vertices.numpy(), remeshed_faces, new_face_num
+                )
+            else:
+                print_message(f"Starting with {remeshed_faces.shape[0]} faces")
+
+            mesh = Mesh(remeshed_vertices, remeshed_faces)
+            model = PointToMeshModel(
+                mesh.edges.shape[0], self.options.pooling)
+
+            # 随机特征值
+            in_features = tf.random.uniform(
+                (mesh.edges.shape[0], 6), -0.5, 0.5)
+
+            old_vertices = tf.convert_to_tensor(
+                remeshed_vertices, dtype=tf.float32)
+            num_iterations = self.options.num_iterations
+            for iteration in range(num_iterations):
+                iteration_start_time = time.time()
+                with tf.GradientTape() as tape:
+                    # 获取新的点位置
+                    features = model(mesh, in_features)
+                    new_vertices = old_vertices + \
+                        get_vertex_features(mesh, features)
+                    # 计算loss值
+                    samples_num = int(
+                        self.options.min_num_samples
+                        + (iteration / self.options.num_iterations)
+                        * (self.options.max_num_samples - self.options.min_num_samples)
+                    )
+                    surface_sample = mesh.sample_surface(
+                        new_vertices, samples_num
+                    )
+                    loss = chamfer_loss(
+                        surface_sample[0], point_cloud_tf, samples_num
+                    )
+                    converged = chamfer_convergence.step(loss.numpy().item())
+
+                gradients = tape.gradient(loss, model.trainable_variables)
+                optimizer.apply_gradients(
+                    zip(gradients, model.trainable_variables))
+
+                # 保存模型
+                save_obj = self.options.obj_save_modulo
+                if iteration % save_obj == 0 or converged or iteration == num_iterations - 1:
+                    save(
+                        f"tmp_{str(subdivision_level).zfill(2)}_{str(iteration).zfill(3)}.obj",
+                        new_vertices.numpy(),
+                        remeshed_faces,
+                    )
+
+                message = [
+                    f"{subdivision_level+1}/{num_subdivisions} & {iteration+1}/{num_iterations}",
+                    f"Chamfer Loss:{loss.numpy().item()}",
+                    f"Time:{time.time()-iteration_start_time}"
+                ]
+                if self.train_status:
+                    print_message(" ".join(message))
+                else:
+                    print_message(" ".join(message) +
+                                  " [Info] already stop the training")
+
+                # 画布替换
+                self.mesh_in_train = GeometryInfo.numpy_to_o3d(
+                    new_vertices.numpy(), remeshed_faces)
+                gui.Application.instance.post_to_main_thread(
+                    self.window, self._change_scene_on_child_thread)
+
+                # 暂停训练
+                while not self.train_status:
+                    time.sleep(1)
+
+                if converged:
+                    print_message(
+                        f"Converged at iteration {iteration + 1}/{num_iterations}.")
+                    break
+
+        print_message("Done")
+        gui.Application.instance.post_to_main_thread(
+            self.window, self._reset_after_train)
+
+    def _change_scene_on_child_thread(self):
+        self.display_panel.scene.clear_geometry()
+        self.display_panel.scene.add_geometry(
+            "__result__", self.mesh_in_train, self.settings.material)
+
+    def _reset_after_train(self):
+        # 恢复部分部件功能
+        self.train_status = False
+        self.train_button.enabled = True
+        self.stop_button.visible = False
+        self.point_cloud_button.enabled = True
+        self.initial_mesh_button.enabled = True
+        self.line_button.enabled = True
+        self.point_button.enabled = True
+        self.show_hide_button.enabled = True
+        self.delete_button.enabled = True
+        # 重新绘画已有的模型，并不展示出来
+        self.display_panel.scene.clear_geometry()
+        for g_info in self.geometry_infos.geometry_infos:
+            g_info.visible = False
+            self.display_panel.scene.add_geometry(
+                g_info.name, g_info.geometry, self.settings.material)
+            self.display_panel.scene.show_geometry(g_info.name, False)
+            if g_info.line_set:
+                g_info.line_set_visible = False
+                self.display_panel.scene.add_geometry(
+                    g_info.name+"__line__", g_info.line_set, self.settings.material)
+                self.display_panel.scene.show_geometry(
+                    g_info.name+"__line__", False)
+            if g_info.point_cloud:
+                g_info.point_cloud_visible = False
+                self.display_panel.scene.add_geometry(
+                    g_info.name+"__point__", g_info.point_cloud, self.settings.material)
+                self.display_panel.scene.show_geometry(
+                    g_info.name+"__point__", False)
+        # 添加训练结果模型，并展示出来
+        self.add_geometry_widget_and_others(
+            name="__result__", geometry=self.mesh_in_train)
+
+    def show_message_box(self, title: str, message: list):
+        message_box = gui.Dialog(title)
+        em = self.window.theme.font_size
+        message_box_layout = gui.Vert(0, gui.Margins(em, 0.5*em, em, 0.5*em))
+        for m in message:
+            message_box_layout.add_child(gui.Label(m))
+        ok_button = gui.Button("OK")
+        ok_button.set_on_clicked(self._dialog_cancel)
+        button_layout = gui.Horiz()
+        button_layout.add_stretch()
+        button_layout.add_child(ok_button)
+
+        message_box_layout.add_child(button_layout)
+
+        message_box.add_child(message_box_layout)
+        self.window.show_dialog(message_box)
+
+    """
+    消息面板功能函数
+    """
+
+    def _print_message_on_child_thread(self):
+        self.message_label.text = self.message
+
+    def _print_message(self, message: str):
+        self.message_label.text = message
 
 
 def main():
