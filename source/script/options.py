@@ -17,7 +17,7 @@ DEFAULTS = {
     # An optional initial mesh.
     "initial_mesh": None,
     # The folder where the results are saved.
-    "save_location": "data/results/airplane_0003    ",   
+    "save_location": "data/test",   
     # how often to run beamgap loss if -1 then no beam gap loss
     "beamgap_modulo": -1,
     # how often to save objs

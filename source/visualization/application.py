@@ -294,6 +294,23 @@ class MainWindow:
         option_collapsablevert.add_child(max_sample_layout)
 
         # pooling
+        self.poolings = []
+        self.poolings_status = gui.Checkbox("Use mesh pool.(value in descending order between 0 and 1)")
+        self.poolings_status.set_on_checked(self._on_poolings_status)
+        option_collapsablevert.add_child(self.poolings_status)
+
+        self.poolings_layout = gui.Horiz()
+        self.poolings_layout.add_child(gui.Label("pooling:"))
+        for i in range(0,6):
+            pooling = gui.NumberEdit(gui.NumberEdit.DOUBLE)
+            pooling.set_preferred_width(2*em)
+            pooling.decimal_precision = 1
+            self.poolings_layout.add_child(pooling)
+            self.poolings_layout.add_fixed(0.33*em)
+            self.poolings.append(pooling)
+        self.poolings_layout.visible = False
+        option_collapsablevert.add_child(self.poolings_layout)
+            
 
         self.options_panel.add_child(option_collapsablevert)
 
@@ -1082,6 +1099,13 @@ class MainWindow:
     def _i_m_d_done(self, path):
         self.window.close_dialog()
         self._initial_mesh.text_value = path
+    
+    # 训练面板 --> 是否使用pool
+    def _on_poolings_status(self, is_checked):
+        if is_checked:
+            self.poolings_layout.visible = True
+        else:
+            self.poolings_layout.visible = False
 
     # 训练面板 --> 训练按钮
     def _on_train(self):
@@ -1102,8 +1126,12 @@ class MainWindow:
             self.options.save_location = self._result_folder.text_value
         if self.initial_mesh_status.checked and len(self._initial_mesh.text_value) != 0:
             self.options.initial_mesh = self._initial_mesh.text_value
-        else:
-            self.options.initial_mesh = None
+        if self.poolings_status.checked:
+            i = 0
+            while i < 6:
+                self.options.pooling[i] = self.poolings[i].double_value
+                i = i+1
+
         print(self.options)
 
         # 校验 options 参数
@@ -1123,6 +1151,7 @@ class MainWindow:
             self.display_panel.scene.clear_geometry()
             threading.Thread(target=self.train_model).start()
         else:
+            self.options.reset()
             self.show_message_box("WARNING", warnings)
 
     # 训练面板 --> 暂停按钮

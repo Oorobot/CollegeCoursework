@@ -50,10 +50,10 @@ class GeometryInfo():
                 self.num_faces = len(self.geometry.triangles)
                 self.line_set = o3d.geometry.LineSet.create_from_triangle_mesh(
                     self.geometry)
-                self.line_set.paint_uniform_color((0.5098, 0.5098, 0.5098))
+                self.line_set.paint_uniform_color((1, 0, 0)) # 红色
                 vertices, _ = GeometryInfo.o3d_to_numpy(self.geometry)
                 self.point_cloud = GeometryInfo.numpy_to_o3d(vertices, None)
-                self.point_cloud.paint_uniform_color((1, 0.7569, 0.1451))
+                self.point_cloud.paint_uniform_color((0, 1, 0)) # 绿色
         else:
             self.num_vertices = 0
             self.num_faces = 0

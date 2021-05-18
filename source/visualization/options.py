@@ -67,7 +67,7 @@ class Options():
              point_cloud=None,
              save_location=None,
              initial_mesh=None,
-             pooling=[None, None, None, None, None, None]
+             # pooling=[None, None, None, None, None, None]
              ):
         self.point_cloud = point_cloud
         self.save_location = save_location
@@ -81,7 +81,7 @@ class Options():
         self.obj_save_modulo = obj_save_modulo
         self.min_num_samples = min_num_samples
         self.max_num_samples = max_num_samples
-        self.pooling = pooling
+        self.pooling = [None, None, None, None, None, None]
 
     def reset(self):
         self.apply_options_profile(Options.DEFAULT_PROFILE_NAME)
@@ -114,4 +114,12 @@ class Options():
         if self.max_num_samples <= self.min_num_samples:
             warnings.append(
                 "The maxinum number of samples must > The mininum one")
+        for i in range(0, 5):
+            if self.pooling[i] <= 0 or self.pooling[i] >= 1 or self.pooling[i] <= self.pooling[i+1]:
+                warnings.append(
+                    "pooling value should be in descending order between 0 and 1")
+                break
+        if self.pooling[5] <= 0 or self.pooling[5] >= 1:
+            warnings.append(
+                "pooling value should be in descending order between 0 and 1")
         return warnings
