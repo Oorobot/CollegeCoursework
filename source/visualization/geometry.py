@@ -3,71 +3,92 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 import open3d as o3d
+import open3d.visualization.gui as gui
 
 
 class GeometryInfo():
+
     id: int
     file: str
-    name: str
-    visible: bool
-    geometry: None
+
+    # 在画布模块中的 名字
+    name: list
+
+    # 三维模型：[TriangleMesh, PointCloud, LineSet] or [PointCloud]
+    geometry: list
+
+    # [bool, bool, bool]
+    visible: list
+
+    # 三维模型的边数和顶点数
     num_vertices: int
     num_faces: int
-    line_set: None
-    line_set_visible: bool
-    point_cloud: None
-    point_cloud_visible: bool
 
-    def __init__(self, path=None, name="", geometry=None) -> None:
+    # 部件
+    widget = None
+
+    def __init__(self, path=None, name=None, geometry=None) -> None:
         """ 使用时，仅用 path 参数 或 用 name，geometry 参数
             path: 文件路径或None。 
             name: 名称
             geometry: Point Cloud or Triangle Mesh
         """
         self.id = -1
-        self.visible = True
-        self.line_set_visible = False
-        self.point_cloud_visible = False
+        self.visible = [True, False, False]
+        self.geometry = []
+        self.name = []
         if path is None:
             self.file = ""
-            self.name = name
-            self.geometry = geometry
+            self.name.append(name)
+            self.geometry.append(geometry)
         else:
             self.file = os.path.basename(path)
-            self.name = self.file.split(".")[0]
-            self.geometry = GeometryInfo.read(path)
+            self.name.append(self.file.split(".")[0])
+            self.geometry.append(GeometryInfo.read(path))
         self.bulid()
-    
+
     def bulid(self):
-        if self.geometry:
-            if self.geometry.get_geometry_type() == o3d.geometry.Geometry.PointCloud:
-                self.num_vertices = len(self.geometry.points)
+        if self.geometry[0]:
+            if self.geometry[0].get_geometry_type() == o3d.geometry.Geometry.PointCloud:
+                self.num_vertices = len(self.geometry[0].points)
                 self.num_faces = 0
-                self.line_set = None
-                self.point_cloud = None
             else:  # o3d.geometry.Geometry.TriangleMesh
-                self.num_vertices = len(self.geometry.vertices)
-                self.num_faces = len(self.geometry.triangles)
-                self.line_set = o3d.geometry.LineSet.create_from_triangle_mesh(
-                    self.geometry)
-                self.line_set.paint_uniform_color((1, 0, 0)) # 红色
-                vertices, _ = GeometryInfo.o3d_to_numpy(self.geometry)
-                self.point_cloud = GeometryInfo.numpy_to_o3d(vertices, None)
-                self.point_cloud.paint_uniform_color((0, 1, 0)) # 绿色
+                self.num_vertices = len(self.geometry[0].vertices)
+                self.num_faces = len(self.geometry[0].triangles)
+                # 点
+                vertices, _ = GeometryInfo.o3d_to_numpy(self.geometry[0])
+                cloud = GeometryInfo.numpy_to_o3d(vertices, None)
+                cloud.paint_uniform_color((0, 1, 0))  # 绿色
+                self.geometry.append(cloud)
+                self.name.append(self.name[0] + "__point__")
+                # 线
+                line = o3d.geometry.LineSet.create_from_triangle_mesh(
+                    self.geometry[0])
+                line.paint_uniform_color((1, 0, 0))  # 红色
+                self.geometry.append(line)
+                self.name.append(self.name[0] + "__line__")
         else:
             self.num_vertices = 0
             self.num_faces = 0
-            self.line_set = None
-            self.point_cloud = None
+        # 部件
+        self.widget = gui.CollapsableVert(
+            self.name[0], 0, gui.Margins(0, 0, 0, 0))
+        self.widget.set_is_open(False)
+        self.widget.add_child(gui.Label("File:"+self.file))
+        self.widget.add_child(
+            gui.Label("vertices:"+str(self.num_vertices)))
+        self.widget.add_child(gui.Label("faces:"+str(self.num_faces)))
 
-    def set_geometry(self, geometry):
-        self.geometry = geometry
+    def set_geometry(self, geometry, name: str):
+        self.geometry = [geometry]
+        self.name = [name]
+        self.bulid()
 
     def set_id(self, id: int):
         self.id = id
-    
+
     def save(self, path):
-        return GeometryInfo.write(self.geometry, path)
+        return GeometryInfo.write(self.geometry[0], path)
 
     @staticmethod
     def read(path: str):
@@ -118,7 +139,7 @@ class GeometryInfo():
                 print("[Info] Successfully read", path)
             else:
                 print("[WARNING] Failed to read points", path)
-        return geometry        
+        return geometry
 
     @staticmethod
     def write(geometry, path: str) -> bool:
@@ -204,44 +225,37 @@ class GeometryInfo():
         return geometry
 
 
-
 class GeometryInfos():
-    geometry_infos: List[GeometryInfo]
-    geometry_names: List[str]
+    infos: List[GeometryInfo]
+    __existed_names: list
 
     def __init__(self) -> None:
-        self.geometry_infos = []
-        self.geometry_names = []
+        self.infos = []
+        self.__existed_names = []
 
-    def get(self, id=-1, name=None) -> GeometryInfo:
-        """ 根据 id 或 name 找到 GeometryInfo """
-        geometry_info = None
-        if name == None:
-            for g_info in self.geometry_infos:
-                if g_info.id == id:
-                    geometry_info = g_info
-                    break
-        if id == -1:
-            for g_info in self.geometry_infos:
-                if g_info.name == name:
-                    geometry_info = g_info
-                    break
-        return geometry_info
+    def get(self, id: int) -> GeometryInfo:
+        """ 根据 id 找到 GeometryInfo """
+        info = None
+        for i in self.infos:
+            if i.id == id:
+                info = i
+                break
+        return info
 
     def pop(self):
-        if len(self.geometry_infos) > 0:
-            self.geometry_infos.pop()
-            self.geometry_names.pop()
+        if len(self.infos) > 0:
+            self.infos.pop()
+            self.__existed_names.pop()
         else:
             print("[WARNING] no item to pop")
 
-    def push_back(self, geometry_info: GeometryInfo):
-        if not isinstance(geometry_info, GeometryInfo):
+    def push_back(self, info: GeometryInfo):
+        if not isinstance(info, GeometryInfo):
             print("[WARNING] 添加元素类型错误")
         else:
             # 检查是否重名，若重名则修改名字
-            name = geometry_info.name
-            while name in self.geometry_names:
+            name = info.name[0]
+            while name in self.__existed_names:
                 # 名字后缀无编号，直接添加编号
                 if not name.endswith(")"):
                     name = name + "(1)"
@@ -262,15 +276,17 @@ class GeometryInfos():
                     except Exception as e:
                         name = name + "(1)"
             # 修改名字
-            geometry_info.name = name
+            info.name[0] = name
+            if len(info.geometry) == 3:
+                info.name[1] = name + "__point__"
+                info.name[2] = name + "__line__"
             # 添加 info
-            self.geometry_names.append(geometry_info.name)
-            self.geometry_infos.append(geometry_info)
+            self.__existed_names.append(info.name)
+            self.infos.append(info)
 
     def remove(self, id: int):
-        for g_info in self.geometry_infos:
-            if g_info.id == id:
-                self.geometry_infos.remove(g_info)
-                self.geometry_names.remove(g_info.name)
+        for info in self.infos:
+            if info.id == id:
+                self.infos.remove(info)
+                self.__existed_names.remove(info.name)
                 break
-

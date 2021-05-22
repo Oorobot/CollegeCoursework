@@ -91,7 +91,7 @@ class Options():
         for key, val in profile.items():
             setattr(self, key, val)
 
-    def validate(self) -> list:
+    def validate(self, validate_pooling: bool) -> list:
         warnings = []
         if self.point_cloud is None or len(self.point_cloud) == 0:
             warnings.append("please choose a point cloud file.")
@@ -114,12 +114,13 @@ class Options():
         if self.max_num_samples <= self.min_num_samples:
             warnings.append(
                 "The maxinum number of samples must > The mininum one")
-        for i in range(0, 5):
-            if self.pooling[i] <= 0 or self.pooling[i] >= 1 or self.pooling[i] <= self.pooling[i+1]:
+        if validate_pooling:
+            for i in range(0, 5):
+                if self.pooling[i] <= 0 or self.pooling[i] >= 1 or self.pooling[i] <= self.pooling[i+1]:
+                    warnings.append(
+                        "pooling value should be in descending order between 0 and 1")
+                    break
+            if self.pooling[5] <= 0 or self.pooling[5] >= 1:
                 warnings.append(
                     "pooling value should be in descending order between 0 and 1")
-                break
-        if self.pooling[5] <= 0 or self.pooling[5] >= 1:
-            warnings.append(
-                "pooling value should be in descending order between 0 and 1")
         return warnings
