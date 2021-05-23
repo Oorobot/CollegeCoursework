@@ -1,9 +1,9 @@
+import ctypes
+import os
 import threading
 import time
-from typing import Tuple
 
 import numpy as np
-import open3d as o3d
 import open3d.visualization.gui as gui
 import open3d.visualization.rendering as rendering
 import tensorflow as tf
@@ -12,7 +12,7 @@ import trimesh
 from ..model.Loss import ChamferLossLayer, ConvergenceDetector
 from ..model.Mesh import Mesh
 from ..model.PointToMeshModel import PointToMeshModel, get_vertex_features
-from ..script.tools import remesh
+from ..script.tools import Obj, remesh
 from .geometry import GeometryInfo, GeometryInfos
 from .options import Options
 from .settings import Settings
@@ -52,7 +52,7 @@ class MainWindow:
 
         # 训练参数
         self.options = Options()
-
+        
         # 三维模型
         self.cloud = None  # 训练的点云
         self.geometry_infos = GeometryInfos()
@@ -64,7 +64,7 @@ class MainWindow:
         self.train_status = False
 
         self.window = gui.Application.instance.create_window(
-            "Point To Mesh", 1600, 800)
+            "Point To Mesh", ctypes.windll.user32.GetSystemMetrics(0), ctypes.windll.user32.GetSystemMetrics(1))
 
         em = self.window.theme.font_size
 
@@ -169,8 +169,8 @@ class MainWindow:
         self.scene_module.scene.show_axes(True)
 
         # 训练模型操作面板
-        self.options_module = gui.Vert(
-            0, gui.Margins(em*0.5, em*0.5, em*0.5, em*0.5))
+        self.train_module = gui.Vert(
+            0, gui.Margins(em*0.5, em*0.2, em*0.5, em*0.2))
         option_collapsablevert = gui.CollapsableVert(
             "Train Model", 0, gui.Margins(0.5*em, 0, 0.5*em, 0))
         option_collapsablevert.set_is_open(False)
@@ -180,23 +180,19 @@ class MainWindow:
         self.point_cloud_button = gui.Button("...")
         self.point_cloud_button.horizontal_padding_em = 0.5
         self.point_cloud_button.vertical_padding_em = 0
-
         self.point_cloud_button.set_on_clicked(self._on_point_cloud_button)
 
-        self.point_cloud_layout = gui.Horiz()
-        self.point_cloud_layout.add_child(gui.Label("Point Cloud:"))
-        self.point_cloud_layout.add_child(self._point_cloud)
-        self.point_cloud_layout.add_child(self.point_cloud_button)
-
-        option_collapsablevert.add_child(self.point_cloud_layout)
+        point_cloud_layout = gui.Horiz()
+        point_cloud_layout.add_child(gui.Label("Point Cloud:"))
+        point_cloud_layout.add_child(self._point_cloud)
+        point_cloud_layout.add_child(self.point_cloud_button)
+        option_collapsablevert.add_child(point_cloud_layout)
 
         # 训练结果布局（由选择点云文件位置产生）
         self._result_folder = gui.TextEdit()
-
         result_folder_layout = gui.Horiz()
         result_folder_layout.add_child(gui.Label("Result file Folder:"))
         result_folder_layout.add_child(self._result_folder)
-
         option_collapsablevert.add_child(result_folder_layout)
 
         # 初始网格布局（有->选择初始网格；无->略）
@@ -212,91 +208,39 @@ class MainWindow:
         self.initial_mesh_layout.add_child(gui.Label("initial mesh:"))
         self.initial_mesh_layout.add_child(self._initial_mesh)
         self.initial_mesh_layout.add_child(self.initial_mesh_button)
-
         self.initial_mesh_layout.visible = False
 
         option_collapsablevert.add_child(self.initial_mesh_status)
         option_collapsablevert.add_child(self.initial_mesh_layout)
 
-        # 参数布局1（基础）
-        self._num_epoch = gui.NumberEdit(gui.NumberEdit.INT)
-        self._num_epoch.int_value = self.options.num_subdivisions
-        self._num_epoch.set_limits(1, 99)
-
-        self._num_iterations = gui.NumberEdit(gui.NumberEdit.INT)
-        self._num_iterations.int_value = self.options.num_iterations
-        self._num_iterations.set_limits(100, 10000)
-
-        self._epoch_multiplier = gui.NumberEdit(gui.NumberEdit.DOUBLE)
-        self._epoch_multiplier.double_value = self.options.subdivision_multiplier
-        self._epoch_multiplier.set_limits(1.1, 10.0)
-
-        train_parameters_layout = gui.Horiz()
-        train_parameters_layout.add_child(gui.Label("number of epoch:"))
-        train_parameters_layout.add_child(self._num_epoch)
-        train_parameters_layout.add_fixed(em)
-        train_parameters_layout.add_child(gui.Label("number of iterations:"))
-        train_parameters_layout.add_child(self._num_iterations)
-
-        option_collapsablevert.add_child(train_parameters_layout)
-
-        train_parameters_layout_1 = gui.Horiz()
-        train_parameters_layout_1.add_child(
-            gui.Label("the multiple of face number of two adjacent epoch:"))
-        train_parameters_layout_1.add_child(self._epoch_multiplier)
-
-        option_collapsablevert.add_child(train_parameters_layout_1)
-
-        # 参数布局2（面数）
-        self._initial_faces_num = gui.NumberEdit(gui.NumberEdit.INT)
-        self._initial_faces_num.int_value = self.options.initial_num_faces
-        self._initial_faces_num.set_limits(500, 5000)
-        self._max_faces_num = gui.NumberEdit(gui.NumberEdit.INT)
-        self._max_faces_num.int_value = self.options.max_num_faces
-        self._max_faces_num.set_limits(10000, 1000000)
-
-        face_parameters_layout_0 = gui.Horiz()
-        face_parameters_layout_0.add_child(
-            gui.Label("The initial face number:"))
-        face_parameters_layout_0.add_child(self._initial_faces_num)
-        face_parameters_layout_1 = gui.Horiz()
-        face_parameters_layout_1.add_child(
-            gui.Label("The maximum face number:"))
-        face_parameters_layout_1.add_child(self._max_faces_num)
-
-        option_collapsablevert.add_child(face_parameters_layout_0)
-        option_collapsablevert.add_child(face_parameters_layout_1)
-
-        # 参数布局3（保存结果）
-        self._save_obj = gui.NumberEdit(gui.NumberEdit.INT)
-        self._save_obj.int_value = self.options.obj_save_modulo
-        self._save_obj.set_limits(1, 100)
-
-        save_parameters_layout = gui.Horiz()
-        save_parameters_layout.add_child(gui.Label("how often to save:"))
-        save_parameters_layout.add_child(self._save_obj)
-
-        option_collapsablevert.add_child(save_parameters_layout)
-
-        # 参数布局4（采样）
-        self._min_samples_num = gui.NumberEdit(gui.NumberEdit.INT)
-        self._min_samples_num.int_value = self.options.min_num_samples
-        self._max_samples_num = gui.NumberEdit(gui.NumberEdit.INT)
-        self._max_samples_num.int_value = self.options.max_num_samples
-
-        option_collapsablevert.add_child(
-            gui.Label("---range to lineralyinterp between when computing samples---"))
-        min_sample_layout = gui.Horiz()
-        min_sample_layout.add_child(
-            gui.Label("The minimum number of samples:"))
-        min_sample_layout.add_child(self._min_samples_num)
-        max_sample_layout = gui.Horiz()
-        max_sample_layout.add_child(
-            gui.Label("The maximum number of samples:"))
-        max_sample_layout.add_child(self._max_samples_num)
-
-        option_collapsablevert.add_child(min_sample_layout)
-        option_collapsablevert.add_child(max_sample_layout)
+        # 参数(布局)
+        self.__training_parameters = []
+        labels_and_values = [
+            ["subdivision level:", self.options.num_subdivisions,
+             "number of iterations:", self.options.num_iterations, gui.NumberEdit.INT],
+            ["initial face number:", self.options.initial_num_faces,
+             "maxinum face number:", self.options.max_num_faces, gui.NumberEdit.INT],
+            ["the multiple of face number of two adjacent level:", self.options.subdivision_multiplier,
+             gui.NumberEdit.DOUBLE],
+            ["sampling mininum:", self.options.min_num_samples,
+             "sampling maxinum:", self.options.max_num_samples, gui.NumberEdit.INT]
+        ]
+        for label in labels_and_values:
+            horzi = gui.Horiz()
+            for i in range(0, len(label)-1, 2):
+                number_edit = gui.NumberEdit(label[-1])
+                if label[-1] == gui.NumberEdit.INT:
+                    number_edit.set_preferred_width(5.8*em)
+                    number_edit.int_value = label[i+1]
+                else:
+                    number_edit.set_preferred_width(2*em)
+                    number_edit.decimal_precision = 2
+                    number_edit.double_value = label[i+1]
+                horzi.add_child(gui.Label(label[i]))
+                horzi.add_child(number_edit)
+                self.__training_parameters.append(number_edit)
+                horzi.add_fixed(em)
+            option_collapsablevert.add_child(horzi)
 
         # pooling
         self.poolings = []
@@ -317,33 +261,45 @@ class MainWindow:
         self.poolings_layout.visible = False
         option_collapsablevert.add_child(self.poolings_layout)
 
-        self.options_module.add_child(option_collapsablevert)
+        # 参数（保存频次）
+        save_obj = gui.NumberEdit(gui.NumberEdit.INT)
+        save_obj.int_value = self.options.obj_save_modulo
+
+        save_horiz = gui.Horiz()
+        save_horiz.add_child(gui.Label("how often to save:"))
+        save_horiz.add_child(save_obj)
+        self.__training_parameters.append(save_obj)
+
+        option_collapsablevert.add_child(save_horiz)
+
+        self.train_module.add_child(option_collapsablevert)
 
         # “训练”按钮
         Train_button_layout = gui.Horiz()
         self.train_button = gui.Button("Train")
-        self.train_button.horizontal_padding_em = 0.5
+        self.train_button.horizontal_padding_em = 0.8
         self.train_button.vertical_padding_em = 0
         self.train_button.set_on_clicked(self._on_train)
         self.stop_button = gui.Button("Stop")
-        self.stop_button.horizontal_padding_em = 0.5
+        self.stop_button.horizontal_padding_em = 0.8
         self.stop_button.vertical_padding_em = 0
-        self.stop_button.visible = False
+        self.stop_button.enabled = False
         self.stop_button.set_on_clicked(self._on_stop)
         Train_button_layout.add_stretch()
         Train_button_layout.add_child(self.stop_button)
+        Train_button_layout.add_fixed(em)
         Train_button_layout.add_child(self.train_button)
 
-        self.options_module.add_child(Train_button_layout)
+        self.train_module.add_child(Train_button_layout)
 
-        # 消息面板
-        self.info_panel = gui.Horiz(0, gui.Margins(em, 0, em, 0))
+        # 消息模块布局
+        self.message_module = gui.Horiz(0, gui.Margins(em, 0, em, 0))
         self.message_label = gui.Label("Welcome.")
-        self.info_panel.add_child(self.message_label)
+        self.message_module.add_child(self.message_label)
 
-        # 三维模型面板
-        self.geometry_panel = gui.Vert(
-            0, gui.Margins(0.1*em, 0.33*em, 0.1*em, 0))
+        # 三维模型选择模块布局
+        self.select_module = gui.Vert(
+            0, gui.Margins(0.1*em, 0.33*em, 0.1*em, 0.2*em))
 
         self.line_button = gui.Button("line:show")
         self.line_button.horizontal_padding_em = 0.5
@@ -360,13 +316,13 @@ class MainWindow:
         show_type_horiz.add_child(gui.Label("   "))
         show_type_horiz.add_child(self.point_button)
 
-        self.geometry_panel.add_child(show_type_horiz)
+        self.select_module.add_child(show_type_horiz)
 
         self.geometry_treeview = gui.TreeView()
         self.geometry_treeview.can_select_items_with_children = False
         self.geometry_treeview.set_on_selection_changed(self._on_tree)
 
-        self.geometry_panel.add_child(self.geometry_treeview)
+        self.select_module.add_child(self.geometry_treeview)
 
         self.show_hide_button = gui.Button("hide")
         self.show_hide_button.horizontal_padding_em = 0.5
@@ -386,13 +342,13 @@ class MainWindow:
         geometry_button_horiz.add_child(self.delete_button)
         geometry_button_horiz.add_stretch()
 
-        self.geometry_panel.add_child(geometry_button_horiz)
+        self.select_module.add_child(geometry_button_horiz)
 
         self.window.set_on_layout(self._on_layout)
         self.window.add_child(self.scene_module)
-        self.window.add_child(self.geometry_panel)
-        self.window.add_child(self.options_module)
-        self.window.add_child(self.info_panel)
+        self.window.add_child(self.select_module)
+        self.window.add_child(self.train_module)
+        self.window.add_child(self.message_module)
 
         self.state_management(MainWindow.STATE_NONE)
 
@@ -408,39 +364,35 @@ class MainWindow:
             MainWindow.MENU_SHOW_GEOMETRY))
         panel_show.append(gui.Application.instance.menubar.is_checked(
             MainWindow.MENU_SHOW_TRAIN))
+        width = min(
+            r.width, self.train_module.calc_preferred_size(theme).width)
+        height = min(r.height,
+                        self.train_module.calc_preferred_size(theme).height)
         if panel_show[0] and panel_show[1]:
-            width = min(
-                r.width, self.options_module.calc_preferred_size(theme).width)
-            height = min(r.height,
-                         self.options_module.calc_preferred_size(theme).height)
-            self.geometry_panel.frame = gui.Rect(
+            self.select_module.frame = gui.Rect(
                 r.get_right() - width, r.y, width, r.height*0.33)
-            self.options_module.frame = gui.Rect(
+            self.train_module.frame = gui.Rect(
                 r.get_right() - width, r.y + r.height*0.33, width, height)
         elif panel_show[0]:
-            self.geometry_panel.frame = gui.Rect(
-                r.get_right()*0.8, r.y, r.get_right()*0.2, r.height*0.33)
-            self.options_module.frame = gui.Rect(
+            self.select_module.frame = gui.Rect(
+                r.get_right() - width, r.y, width, r.height*0.33)
+            self.train_module.frame = gui.Rect(
                 r.x + r.width, r.y + r.height, 0, 0)
         elif panel_show[1]:
-            width = min(
-                r.width, self.options_module.calc_preferred_size(theme).width)
-            height = min(
-                r.height, self.options_module.calc_preferred_size(theme).height)
-            self.geometry_panel.frame = gui.Rect(
+            self.select_module.frame = gui.Rect(
                 r.x + r.width, r.y + r.height, 0, 0)
-            self.options_module.frame = gui.Rect(
+            self.train_module.frame = gui.Rect(
                 r.get_right() - width, r.y, width, height)
         else:
-            self.geometry_panel.frame = gui.Rect(
+            self.select_module.frame = gui.Rect(
                 r.x + r.width, r.y + r.height, 0, 0)
-            self.options_module.frame = gui.Rect(
+            self.train_module.frame = gui.Rect(
                 r.x + r.width, r.y + r.height, 0, 0)
 
-        self.info_panel.frame = gui.Rect(
+        self.message_module.frame = gui.Rect(
             r.x,
-            r.y + r.height - self.info_panel.calc_preferred_size(theme).height,
-            r.width, self.info_panel.calc_preferred_size(theme).height
+            r.y + r.height - self.message_module.calc_preferred_size(theme).height,
+            r.width, self.message_module.calc_preferred_size(theme).height
         )
 
     """
@@ -1005,14 +957,14 @@ class MainWindow:
 
         # 给options赋值
         self.options.init(
-            num_subdivisions=self._num_epoch.int_value,
-            num_iterations=self._num_iterations.int_value,
-            subdivision_multiplier=self._epoch_multiplier.double_value,
-            initial_num_faces=self._initial_faces_num.int_value,
-            max_num_faces=self._max_faces_num.int_value,
-            obj_save_modulo=self._save_obj.int_value,
-            min_num_samples=self._min_samples_num.int_value,
-            max_num_samples=self._max_samples_num.int_value
+            num_subdivisions=self.__training_parameters[0].int_value,
+            num_iterations=self.__training_parameters[1].int_value,
+            subdivision_multiplier=self.__training_parameters[4].double_value,
+            initial_num_faces=self.__training_parameters[2].int_value,
+            max_num_faces=self.__training_parameters[3].int_value,
+            obj_save_modulo=self.__training_parameters[7].int_value,
+            min_num_samples=self.__training_parameters[5].int_value,
+            max_num_samples=self.__training_parameters[6].int_value
         )
         if len(self._point_cloud.text_value) != 0:
             self.options.point_cloud = self._point_cloud.text_value
@@ -1055,14 +1007,9 @@ class MainWindow:
         point_cloud = self.cloud
         point_cloud_tf = tf.convert_to_tensor(point_cloud, dtype=tf.float32)
 
-        def load(path) -> Tuple[np.ndarray, np.ndarray]:
-            temp = GeometryInfo.read(path)
-            vertices, faces = GeometryInfo.o3d_to_numpy(temp.geometry)
-            return np.float32(vertices), faces
-
-        def save(path, vertices, faces):
-            geometry = GeometryInfo.numpy_to_o3d(vertices, faces)
-            GeometryInfo.write(geometry, path)
+        def save(file_name, vertices, faces):
+            Obj.save(os.path.join(
+                self.options.save_location, file_name), vertices, faces)
 
         def print_message(message: str):
             self.message = message
@@ -1072,7 +1019,7 @@ class MainWindow:
 
         # 初始网格
         if self.options.initial_mesh:
-            remeshed_vertices, remeshed_faces = load(self.options.initial_mesh)
+            remeshed_vertices, remeshed_faces = Obj.load(self.options.initial_mesh)
         else:
             convex_hull = trimesh.convex.convex_hull(point_cloud)
             remeshed_vertices, remeshed_faces = remesh(
@@ -1239,8 +1186,8 @@ class MainWindow:
 
     def state_management(self, state: int):
 
-        def train_module_button(enabled: bool, visible: bool):
-            self.stop_button.visible = visible
+        def train_module_button(enabled: bool, stop_button_enabled: bool):
+            self.stop_button.enabled = stop_button_enabled
             self.train_button.enabled = enabled
             self.point_cloud_button.enabled = enabled
             self.initial_mesh_button.enabled = enabled
