@@ -64,7 +64,7 @@ class MainWindow:
         self.train_status = False
 
         self.window = gui.Application.instance.create_window(
-            "Point To Mesh", ctypes.windll.user32.GetSystemMetrics(0), ctypes.windll.user32.GetSystemMetrics(1))
+            "Point2Mesh Visualization System", ctypes.windll.user32.GetSystemMetrics(0), ctypes.windll.user32.GetSystemMetrics(1))
 
         em = self.window.theme.font_size
 
@@ -72,9 +72,9 @@ class MainWindow:
         if gui.Application.instance.menubar is None:
             menubar = gui.Menu()
             file_menu = gui.Menu()
-            file_menu.add_item("improt Mesh", MainWindow.MENU_IMPORT_FILE)
+            file_menu.add_item("improt 3D model", MainWindow.MENU_IMPORT_FILE)
 
-            file_menu.add_item("export Mesh as ...",
+            file_menu.add_item("export 3D model as ...",
                                MainWindow.MENU_EXPORT_FILE)
             menubar.add_menu("File", file_menu)
 
@@ -83,28 +83,27 @@ class MainWindow:
                 "Create convex hull", MainWindow.MENU_CONVEX_HULL)
             operation_menu.add_item(
                 "Translate/Rotation/Scale", MainWindow.MENU_TRANSFORMATION)
-            mesh_menu = gui.Menu()
-            mesh_menu.add_item(
+            operation_menu.add_separator()
+            operation_menu.add_item(
                 "Subdivision: Midpoint", MainWindow.MENU_SUBDIVISION_MIDPOINT)
-            # mesh_menu.add_item(
+            # operation_menu.add_item(
             #     "Subdivision: Loop", MainWindow.MENU_SUBDIVISION_LOOP)
-            mesh_menu.add_separator()
-            mesh_menu.add_item(
+            operation_menu.add_separator()
+            operation_menu.add_item(
                 "Smoothing: Humphrey", MainWindow.MENU_SMOOTH_HUMPHREY)
-            mesh_menu.add_item(
+            operation_menu.add_item(
                 "Smoothing: Laplacian", MainWindow.MENU_SMOOTH_LAPLACIAN)
-            mesh_menu.add_item(
+            operation_menu.add_item(
                 "Smoothing: Taubin", MainWindow.MENU_SMOOTH_TAUBIN)
-            mesh_menu.add_separator()
-            mesh_menu.add_item(
+            operation_menu.add_separator()
+            operation_menu.add_item(
                 "Remesh:Manifold and Simplify", MainWindow.MENU_REMESH)
-            mesh_menu.add_item(
+            operation_menu.add_item(
                 "Simplication: Average", MainWindow.MENU_SIMPLIFICATION_AVERAGE)
-            mesh_menu.add_item(
+            operation_menu.add_item(
                 "Simplication: Quadric Error Metric Decimation",
                 MainWindow.MENU_SIMPLIFICATION_QUADRIC_DECIMATION)
 
-            operation_menu.add_menu("mesh layer", mesh_menu)
             menubar.add_menu("Operations", operation_menu)
 
             view_menu = gui.Menu()
@@ -172,7 +171,7 @@ class MainWindow:
         self.train_module = gui.Vert(
             0, gui.Margins(em*0.5, em*0.2, em*0.5, em*0.2))
         option_collapsablevert = gui.CollapsableVert(
-            "Train Model", 0, gui.Margins(0.5*em, 0, 0.5*em, 0))
+            "Point2Mesh", 0, gui.Margins(0.5*em, 0, 0.5*em, 0))
         option_collapsablevert.set_is_open(False)
 
         # 点云文件布局（选择点云文件）
@@ -529,41 +528,59 @@ class MainWindow:
         self._print_message("[Info] Successfully create convex_hull.")
 
     def _on_menu_transformation(self):
-        dialog = gui.Dialog("transformation")
-        em = self.window.theme.font_size
-        vert = gui.Vert(0, gui.Margins(0.2*em, 0.5*em, 0.2*em, 0.5*em))
-        vert.add_child(gui.Label("First,Translation [XYZ]"))
-        vert.add_child(gui.Label("Then,Rotation [XYZ] Euler angles"))
-        vert.add_child(gui.Label("Finally,scale"))
-        label = ["X Translation: ", "Y Translation: ", "Z Translation: ",
-                 "X Rotation: ", "Y Rotation: ", "Z Rotation: ", "Scale: "
-                 ]
-        self._transformation_parameter = []
-        for i in range(0, len(label)):
-            number_edit = gui.NumberEdit(gui.NumberEdit.DOUBLE)
-            if i != 6:
-                number_edit.double_value = 0.0
-            else:
-                number_edit.double_value = 1.0
-            horiz = gui.Horiz(0, gui.Margins(0, 0.5*em, 0, 0.5*em))
-            horiz.add_child(gui.Label(label[i]))
-            horiz.add_child(number_edit)
-            vert.add_child(horiz)
-            self._transformation_parameter.append(number_edit)
+        introduction = ["First,Translation [XYZ]",
+                "Then,Rotation [XYZ] Euler angles", "Finally,scale"]
+        self.show_functional_dialog(
+            "transformation", introduction, MainWindow.MENU_TRANSFORMATION, self._transformation)
 
-        cancel_button = gui.Button("cancel")
-        cancel_button.set_on_clicked(self._dialog_cancel)
-        apply_button = gui.Button("apply")
-        apply_button.set_on_clicked(self._transformation)
-        button_layout = gui.Horiz()
-        button_layout.add_stretch()
-        button_layout.add_child(cancel_button)
-        button_layout.add_stretch()
-        button_layout.add_child(apply_button)
-        button_layout.add_stretch()
-        vert.add_child(button_layout)
-        dialog.add_child(vert)
-        self.window.show_dialog(dialog)
+    # remesh 网格模型
+    def _on_menu_remesh(self):
+        introduction = ["take a triangle mesh and generate a manifold mesh.",
+                "Then,for efficiency purpose,simplify the mesh."]
+        self.show_functional_dialog(
+            "remesh", introduction, MainWindow.MENU_REMESH, self._remesh)
+
+    def _on_menu_subdivision_midpoint(self):
+        introduction = ["we compute the midpoint of each side per triangle",
+                "and divide the triangle into four smaller triangles."]
+        self.show_functional_dialog(
+            "subdivision", introduction, MainWindow.MENU_SUBDIVISION_MIDPOINT, self._subdivision)
+
+    def _on_menu_subdivision_loop(self):
+        introduction = ["Function subdivide mesh using Loop’s algorithm.",
+                "Loop, Smooth subdivision surfaces based on triangles, 1987."]
+        self.show_functional_dialog(
+            "subdivision", introduction, MainWindow.MENU_SUBDIVISION_LOOP, self._subdivision)
+
+    def _on_menu_smooth_humphrey(self):
+        introduction = ["use laplacian smoothing and Humphrey filtering.",
+                "Articles \"Improved Laplacian Smoothing of Noisy Surface Meshes\"",
+                "J. Vollmer, R. Mencl, and H. Muller"]
+        self.show_functional_dialog(
+            "humphrey smooth:", introduction, MainWindow.MENU_SMOOTH_HUMPHREY, self._smooth)
+
+    def _on_menu_smooth_laplacian(self):
+        introduction = ["use laplacian smoothing."]
+        self.show_functional_dialog(
+            "laplacian smooth:", introduction, MainWindow.MENU_SMOOTH_LAPLACIAN, self._smooth)
+
+    def _on_menu_smooth_taubin(self):
+        introduction = ["use laplacian smoothing and taubin filtering.",
+                "Articles \"Improved Laplacian Smoothing of Noisy Surface Meshes\"",
+                "J. Vollmer, R. Mencl, and H. Muller"]
+        self.show_functional_dialog(
+            "taubin smooth:", introduction, MainWindow.MENU_SMOOTH_TAUBIN, self._smooth)
+
+    def _on_menu_simplification_average(self):
+        introduction = ["simplify mesh using vertex clustering.",
+                "The vertex positions are computed by the averaging."]
+        self.show_functional_dialog(
+            "simplification", introduction, MainWindow.MENU_SIMPLIFICATION_AVERAGE, self._simplification)
+
+    def _on_menu_simplification_quadric_decimation(self):
+        introduction = ["simplify mesh using Quadric Error Metric Decimation."]
+        self.show_functional_dialog(
+            "simplification", introduction, MainWindow.MENU_SIMPLIFICATION_QUADRIC_DECIMATION, self._simplification)
 
     def _transformation(self):
         self._dialog_cancel()
@@ -588,67 +605,8 @@ class MainWindow:
         geometry_info.geometry = [geometry_info.geometry[0]]
         geometry_info.bulid()
         self.add_geometry_in_scene_module(geometry_info, False)
-
-    # remesh 网格模型
-    def _on_menu_remesh(self):
-        info = []
-        info.append("take a triangle mesh and generate a manifold mesh.")
-        info.append("Then,for efficiency purpose,simplify the mesh.")
-        self.show_functional_dialog(
-            "remesh", info, MainWindow.MENU_REMESH, self._remesh)
-
-    def _on_menu_subdivision_midpoint(self):
-        info = []
-        info.append("we compute the midpoint of each side per triangle")
-        info.append("and divide the triangle into four smaller triangles.")
-        self.show_functional_dialog(
-            "subdivision", info, MainWindow.MENU_SUBDIVISION_MIDPOINT, self._subdivision)
-
-    def _on_menu_subdivision_loop(self):
-        info = []
-        info.append("Function subdivide mesh using Loop’s algorithm.")
-        info.append(
-            "Loop, Smooth subdivision surfaces based on triangles, 1987.")
-        self.show_functional_dialog(
-            "subdivision", info, MainWindow.MENU_SUBDIVISION_LOOP, self._subdivision)
-
-    def _on_menu_smooth_humphrey(self):
-        info = []
-        info.append("use laplacian smoothing and Humphrey filtering.")
-        info.append(
-            "Articles \"Improved Laplacian Smoothing of Noisy Surface Meshes\"")
-        info.append("J. Vollmer, R. Mencl, and H. Muller")
-        self.show_functional_dialog(
-            "humphrey smooth:", info, MainWindow.MENU_SMOOTH_HUMPHREY, self._smooth)
-
-    def _on_menu_smooth_laplacian(self):
-        info = []
-        info.append("use laplacian smoothing.")
-        self.show_functional_dialog(
-            "laplacian smooth:", info, MainWindow.MENU_SMOOTH_LAPLACIAN, self._smooth)
-
-    def _on_menu_smooth_taubin(self):
-        info = []
-        info.append("use laplacian smoothing and taubin filtering.")
-        info.append(
-            "Articles \"Improved Laplacian Smoothing of Noisy Surface Meshes\"")
-        info.append("J. Vollmer, R. Mencl, and H. Muller")
-        self.show_functional_dialog(
-            "taubin smooth:", info, MainWindow.MENU_SMOOTH_TAUBIN, self._smooth)
-
-    def _on_menu_simplification_average(self):
-        info = []
-        info.append("simplify mesh using vertex clustering.")
-        info.append("The vertex positions are computed by the averaging.")
-        self.show_functional_dialog(
-            "simplification", info, MainWindow.MENU_SIMPLIFICATION_AVERAGE, self._simplification)
-
-    def _on_menu_simplification_quadric_decimation(self):
-        info = []
-        info.append("simplify mesh using Quadric Error Metric Decimation.")
-        self.show_functional_dialog(
-            "simplification", info, MainWindow.MENU_SIMPLIFICATION_QUADRIC_DECIMATION, self._simplification)
-
+        self._print_message("[Info] Successfully transform.")
+    
     def _remesh(self):
         self._dialog_cancel()
         id = self.geometry_treeview.selected_item
@@ -680,6 +638,8 @@ class MainWindow:
         self._on_delete()
         # 修改后添加
         self.add_geometry_widget_and_others(temp.name[0], mesh_out)
+        self._print_message("[Info] Successfully subdivide.")
+        
 
     def _smooth(self):
         self._dialog_cancel()
@@ -728,12 +688,14 @@ class MainWindow:
         # 修改后添加
         self.add_geometry_widget_and_others(temp.name[0], mesh)
 
-    def show_functional_dialog(self, title: str, info: list, type: int, apply_button_function):
+        self._print_message("[Info] Successfully simplify.")
+
+    def show_functional_dialog(self, title: str, introduction: list, type: int, apply_button_function):
         dialog = gui.Dialog(title)
         self._function_type = type
         em = self.window.theme.font_size
         vert = gui.Vert(0, gui.Margins(0.2*em, 0.5*em, 0.2*em, 0.5*em))
-        for i in info:
+        for i in introduction:
             vert.add_child(gui.Label(i))
 
         if type == MainWindow.MENU_REMESH:
@@ -743,6 +705,21 @@ class MainWindow:
             horiz.add_child(gui.Label("target face number:"))
             horiz.add_child(self._remesh_face_num)
             vert.add_child(horiz)
+        elif type == MainWindow.MENU_TRANSFORMATION:
+            label = ["X Translation: ", "Y Translation: ", "Z Translation: ",
+                     "X Rotation: ", "Y Rotation: ", "Z Rotation: ", "Scale: "]
+            self._transformation_parameter = []
+            for i in range(0, len(label)):
+                number_edit = gui.NumberEdit(gui.NumberEdit.DOUBLE)
+                if i != 6:
+                    number_edit.double_value = 0.0
+                else:
+                    number_edit.double_value = 1.0
+                horiz = gui.Horiz(0, gui.Margins(0, 0.5*em, 0, 0.5*em))
+                horiz.add_child(gui.Label(label[i]))
+                horiz.add_child(number_edit)
+                vert.add_child(horiz)
+                self._transformation_parameter.append(number_edit)
         elif type == MainWindow.MENU_SIMPLIFICATION_AVERAGE:
             self._simplification_parameter = gui.NumberEdit(
                 gui.NumberEdit.DOUBLE)
@@ -865,7 +842,7 @@ class MainWindow:
             else:
                 self.state_management(MainWindow.STATE_MESH)
         else:
-            print("[WARNING] 添加三维模型信息组件失败。")
+            print("[ERROR] Fail to add 3D model 。")
 
     def _on_show_hide(self):
         id = self.geometry_treeview.selected_item
@@ -985,12 +962,11 @@ class MainWindow:
             # 关闭部分部件的功能
             self.train_status = True
             self.state_management(MainWindow.STATE_TRAIN)
-            # 清除画布，仅显示训练的模型变化
-            self.scene_module.scene.clear_geometry()
+            # 开始训练
             threading.Thread(target=self.train_model).start()
         else:
             self.options.reset()
-            self.show_message_box("WARNING", warnings)
+            self.show_message_dialog("WARNING", warnings)
 
     # 训练面板 --> 暂停按钮
     def _on_stop(self):
@@ -1028,6 +1004,7 @@ class MainWindow:
         save("tmp_initial_mesh.obj", remeshed_vertices, remeshed_faces)
 
         # 画布显示初始网格模型
+        self.scene_module.scene.clear_geometry()
         self.mesh_in_train = GeometryInfo.numpy_to_o3d(
             remeshed_vertices, remeshed_faces)
         gui.Application.instance.post_to_main_thread(
@@ -1153,7 +1130,7 @@ class MainWindow:
         self.add_geometry_widget_and_others(
             name="__Point2Mesh_result__", geometry=self.mesh_in_train, setup_camera=True)
 
-    def show_message_box(self, title: str, message: list):
+    def show_message_dialog(self, title: str, message: list):
         message_box = gui.Dialog(title)
         em = self.window.theme.font_size
         message_box_layout = gui.Vert(0, gui.Margins(em, 0.5*em, em, 0.5*em))
