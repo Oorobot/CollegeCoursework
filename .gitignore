@@ -8,3 +8,9 @@ Manifold/
 
 # temporary file
 tmp*
+
+# data
+data/quickhull/
+data/subdivision/
+data/smooth/
+data/simplification/

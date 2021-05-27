@@ -24,9 +24,6 @@ class GeometryInfo():
     num_vertices: int
     num_faces: int
 
-    # 部件
-    widget = None
-
     def __init__(self, path=None, name=None, geometry=None) -> None:
         """ 使用时，仅用 path 参数 或 用 name，geometry 参数
             path: 文件路径或None。 
@@ -70,14 +67,16 @@ class GeometryInfo():
         else:
             self.num_vertices = 0
             self.num_faces = 0
-        # 部件
-        self.widget = gui.CollapsableVert(
+
+    def get_widget(self):
+        widget = gui.CollapsableVert(
             self.name[0], 0, gui.Margins(0, 0, 0, 0))
-        self.widget.set_is_open(False)
-        self.widget.add_child(gui.Label("File:"+self.file))
-        self.widget.add_child(
+        widget.set_is_open(False)
+        widget.add_child(gui.Label("File:"+self.file))
+        widget.add_child(
             gui.Label("vertices:"+str(self.num_vertices)))
-        self.widget.add_child(gui.Label("faces:"+str(self.num_faces)))
+        widget.add_child(gui.Label("faces:"+str(self.num_faces))) 
+        return widget
 
     def set_geometry(self, geometry, name: str):
         self.geometry = [geometry]
@@ -86,6 +85,7 @@ class GeometryInfo():
 
     def set_id(self, id: int):
         self.id = id
+
 
     def save(self, path):
         return GeometryInfo.write(self.geometry[0], path)
@@ -281,12 +281,12 @@ class GeometryInfos():
                 info.name[1] = name + "__point__"
                 info.name[2] = name + "__line__"
             # 添加 info
-            self.__existed_names.append(info.name)
+            self.__existed_names.append(info.name[0])
             self.infos.append(info)
 
     def remove(self, id: int):
         for info in self.infos:
             if info.id == id:
                 self.infos.remove(info)
-                self.__existed_names.remove(info.name)
+                self.__existed_names.remove(info.name[0])
                 break

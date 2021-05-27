@@ -831,7 +831,7 @@ class MainWindow:
             self.geometry_infos.push_back(info)
             # 在TreeView中添加部件
             id = self.geometry_treeview.add_item(
-                self.geometry_treeview.get_root_item(), self.geometry_infos.infos[-1].widget)
+                self.geometry_treeview.get_root_item(), self.geometry_infos.infos[-1].get_widget())
             self.geometry_infos.infos[-1].set_id(id)
             self.geometry_treeview.selected_item = id
             # 在画布中添加
