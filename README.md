@@ -1,5 +1,5 @@
-# 选课开发系统（Spring Boot）
-
+# 选课系统（Spring Boot）
+> 《数据库原理》课程作业：一个简单的选课系统
 ## 数据库设计
 
 > Academy（学院）：ano（学院号）、name、address、phone
