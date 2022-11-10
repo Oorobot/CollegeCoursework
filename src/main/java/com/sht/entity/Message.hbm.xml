@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated 2020-1-21 9:17:20 by Hibernate Tools 3.5.0.Final -->
+<hibernate-mapping>
+    <class name="com.sht.entity.Message" table="MESSAGE">
+        <id name="messageId" type="java.lang.Long">
+            <column name="MESSAGEID" />
+            <generator class="native" />
+        </id>
+        <property name="message" type="java.lang.String">
+            <column name="MESSAGE" />
+        </property>
+        <property name="userId" type="java.lang.Long">
+            <column name="USERID" />
+        </property>
+        <property name="commodityId" type="java.lang.Long">
+            <column name="COMMODITYID" />
+        </property>
+    </class>
+</hibernate-mapping>

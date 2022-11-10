@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated 2020-1-18 17:09:26 by Hibernate Tools 3.5.0.Final -->
+<hibernate-mapping>
+	<class name="com.sht.entity.Commodity" table="COMMODITY">
+		<id name="commodityId" type="java.lang.Long">
+			<column name="COMMODITYID" />
+			<generator class="native" />
+		</id>
+		<property name="commodityName" type="java.lang.String">
+			<column name="COMMODITYNAME" />
+		</property>
+		<property name="commodityPrice" type="java.lang.Double">
+			<column name="COMMODITYPRICE" />
+		</property>
+		<property name="commodityImage" type="java.lang.String">
+			<column name="COMMODITYIMAGE" />
+		</property>
+		<property name="commodityDepict" type="java.lang.String">
+			<column name="COMMODITYDEPICT" />
+		</property>
+		<property name="userId" type="java.lang.Long">
+			<column name="USERID" />
+		</property>
+		<property name="commodityClassId" type="java.lang.Long">
+			<column name="COMMODITYCLASSID" />
+		</property>
+		<property name="isOrdered" type="java.lang.Boolean">
+			<column name="ISORDERED" />
+		</property>
+	</class>
+</hibernate-mapping>

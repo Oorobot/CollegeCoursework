@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated 2020-1-21 9:19:09 by Hibernate Tools 3.5.0.Final -->
+<hibernate-mapping>
+    <class name="com.sht.entity.Orders" table="ORDERS">
+        <id name="orderId" type="java.lang.Long">
+            <column name="ORDERID" />
+            <generator class="native" />
+        </id>
+        <property name="userId" type="java.lang.Long">
+            <column name="USERID" />
+        </property>
+        <property name="orderNo" type="java.lang.String">
+            <column name="ORDERNO" />
+        </property>
+        <property name="totalPrice" type="java.lang.Double">
+            <column name="TOTALPRICE" />
+        </property>
+        <property name="submitTime" type="java.util.Date">
+            <column name="SUBMITTIME" />
+        </property>
+        <property name="isPay" type="java.lang.Boolean">
+            <column name="ISPAY" />
+        </property>
+        <property name="isOver" type="java.lang.Boolean">
+            <column name="ISOVER" />
+        </property>
+        <property name="commodityId" type="java.lang.Long">
+            <column name="COMMODITYID" />
+        </property>
+    </class>
+</hibernate-mapping>
