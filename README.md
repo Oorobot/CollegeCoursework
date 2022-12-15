@@ -1,4 +1,4 @@
-# 课程作业
+# Exercise
 1. [others](https://github.com/Oorobot/CollegeCoursework/tree/others)
     - C/C++：使用链表实现的学生管理系统
     - 数据结构：经典的数据结构代码
